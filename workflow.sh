@@ -294,13 +294,8 @@ R --slave --args "$max_threads" "$database_tax" "$database_name" << 'makeOTUtabl
   mappings_to_otu <- mappings_s %>% 
   select(c("SeqID", "OTU"))
 
-  # Write mappings out for further analysis in R
-  question <- askYesNo("Do you want to write out a detailed mapping file?", default=TRUE, prompts = getOption("askYesNo", gettext(c("Yes", "No", "Cancel"))))
-  if (question == TRUE) {
-    fwrite(mappings_s, "output/mappings_filt15.txt", quote = F, sep = "\t", row.names = F, col.names = T)
-  }else if (question == FALSE) {
-    print("Okay, we'll resume..")
-  }
+  # Write out detailed mappings
+  fwrite(mappings_s, "output/mappings_detailed.txt", quote = F, sep = "\t", row.names = F, col.names = T)
 
   # Define function for 
   #join taxonomy with mapping
