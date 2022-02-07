@@ -114,7 +114,7 @@ case ${opt} in
     i_flag=1
     ;;
   t )
-    MAX_max_threads=$OPTARG
+    max_threads=$OPTARG
     ;;
   v )
     echo "version: $version"
