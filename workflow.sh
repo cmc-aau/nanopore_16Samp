@@ -50,13 +50,13 @@ checkFolder() {
     echo "Error: function must be passed exactly 1 argument" >&2
     exit 1
   fi
-  if [ -d $1 ]
+  if [ -d "$1" ]
   then
       scriptMessage "A directory named '$1' already exists and is needed for this script to run. Please backup or delete the folder."
       scriptMessage "Exiting script."
       exit 1
   else
-    mkdir -p $1
+    mkdir -p "$1"
   fi
 }
 
@@ -73,11 +73,11 @@ scriptMessage() {
 
 #function to check if executable(s) are available in $PATH
 checkCommand() {
-  args="$@"
+  args="$*"
   exit="no"
   for arg in $args
   do
-    if [ -z $(command -v $arg) ]
+    if [ -z "$(command -v "$arg")" ]
     then
       echo "${arg}: command not found"
       exit="yes"
@@ -152,7 +152,7 @@ fi
 #print settings here?
 
 # Start workflow
-database_name=$(echo "$database_fasta" | grep -o "[^/]*$" | grep -o "^[^\.]*")
+database_name=$(echo "${database_fasta}" | grep -o "[^/]*$" | grep -o "^[^\.]*")
 
 checkFolder output/
 checkFolder output/mapped
@@ -160,29 +160,29 @@ checkFolder output/filtered/
 
 #decompress if files are gzip'ed
 scriptMessage "Decompressing fastq files if gzip'ed"
-find "$input" -iname '*.gz' -exec gunzip -q {} \;
+find "${input}" -iname '*.gz' -exec gunzip -q {} \;
 
-fastqfiles=$(find "$input" -iname '*.f*q' -printf '%h\n' | sort -u)
-if [ -z "$fastqfiles" ]
+fastqfiles=$(find "${input}" -iname '*.f*q' -printf '%h\n' | sort -u)
+if [ -z "${fastqfiles}" ]
 then
   echo "Error: no fastq files found in ${input}, exiting..."
   exit 1
 fi
 
 scriptMessage "Concatenating all reads for each barcode"
-for dirpath in $fastqfiles/
+for dirpath in ${fastqfiles}/
 do
-  barcodename=$(basename "$dirpath")
-  if [ -s "$output/concatenated/$barcodename.fastq" ]
+  barcodename=$(basename "${dirpath}")
+  if [ -s "${output}/concatenated/${barcodename}.fastq" ]
   then
-    echo "$barcodename has already been concatenated";  
+    echo "${barcodename} has already been concatenated";
   else
     (
-    mkdir -p "$output/concatenated/"
+    mkdir -p "${output}/concatenated/"
     scriptMessage "   concatenating ${barcodename}..."
-      cat "$dirpath"/*.f*q | \
+      cat "${dirpath}"/*.f*q | \
       sed 's/\(runid.*start_\)//' | \
-      tr -d '[:blank:]' > "${output}/concatenated/$barcodename.fastq"
+      tr -d '[:blank:]' > "${output}/concatenated/${barcodename}.fastq"
     )
   fi
 done  
@@ -198,13 +198,13 @@ done
 #fi
 
 scriptMessage "Mapping all reads for each barcode to the database"
-for file in "$output"/concatenated/*.fastq
+for file in "${output}"/concatenated/*.fastq
 do
-  filename=$(basename "$file" .fastq)
+  filename=$(basename "${file}" .fastq)
 
-  if [ -s "output/$filename.idmapped.txt" ]
+  if [ -s "output/${filename}.idmapped.txt" ]
   then
-    echo "output/$filename.idmapped.txt has already been generated"
+    echo "output/${filename}.idmapped.txt has already been generated"
   else
     # Map reads to reference database
     scriptMessage "   ${filename}: Mapping against database..."
@@ -215,14 +215,14 @@ do
       --secondary=no \
       "$database_fasta" \
       -K20M "$file" > \
-      "output/mapped/$filename.sam"
+      "output/mapped/${filename}.sam"
     
     scriptMessage "   ${filename}: Filtering mapping output..."
     samtools view \
       -F 256 \
       -F 4 \
-      -F 2048 "output/mapped/$filename.sam" \
-      --threads "$max_threads" \
+      -F 2048 "output/mapped/${filename}.sam" \
+      --threads "${max_threads}" \
       -o "output/mapped/${filename}_nodupes.sam"
 
     # Create mapping overview
@@ -240,12 +240,12 @@ do
         print $1, $2, $3, length($10), aln, (aln - mm)/aln, $12, $14, $20
         aln=0;
       }' | \
-      sed 's/time=/\t/' | sed 's/Zflow_cell.*barcode=/\t/' > "output/$filename.idmapped.txt"
+      sed 's/time=/\t/' | sed 's/Zflow_cell.*barcode=/\t/' > "output/${filename}.idmapped.txt"
   fi
 done
 
 scriptMessage "Generating OTU/mapping table"
-R --slave --args "$max_threads" "$database_tax" "$database_name" << 'makeOTUtable'
+R --slave --args "${max_threads}" "${database_tax}" "${database_name}" << 'makeOTUtable'
   #extract passed args from shell script
   args <- commandArgs(trailingOnly = TRUE)
   suppressPackageStartupMessages({
@@ -311,12 +311,12 @@ R --slave --args "$max_threads" "$database_tax" "$database_name" << 'makeOTUtabl
   fwrite(BIOMotutable, paste0("output/otutable_", args[[3]], ".txt"), sep = "\t", col.names = TRUE, na = "NA", quote = FALSE)
 makeOTUtable
 
-duration=$(printf '%02dh:%02dm:%02ds\n' $(($SECONDS/3600)) $(($SECONDS%3600/60)) $(($SECONDS%60)))
+duration=$(printf '%02dh:%02dm:%02ds\n' $((SECONDS/3600)) $((SECONDS%3600/60)) $((SECONDS%60)))
 scriptMessage "Done in: $duration, enjoy!"
 
 ##### END OF ACTUAL SCRIPT #####
 
 #print elapsed time since script was invoked
-duration=$(printf '%02dh:%02dm:%02ds\n' $(($SECONDS/3600)) $(($SECONDS%3600/60)) $(($SECONDS%60)))
+duration=$(printf '%02dh:%02dm:%02ds\n' $((SECONDS/3600)) $((SECONDS%3600/60)) $((SECONDS%60)))
 scriptMessage "Done in: $duration!"
 exit 0
