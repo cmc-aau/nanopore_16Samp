@@ -7,16 +7,13 @@ set -o errexit
 # exit when a pipe fails
 set -o pipefail
 
-#disallow undeclared variables
-set -o nounset
-
 #disallow clobbering (overwriting) of files
 #set -o noclobber
 
 #print exactly what gets executed (useful for debugging)
 #set -o xtrace
 
-version="1.0"
+version="1.1"
 
 #use all logical cores except 2 unless adjusted by user
 max_threads=${max_threads:-$(($(nproc)-2))}
@@ -32,6 +29,9 @@ database_tax=${database_tax:-"/space/databases/midas/MiDAS4.8.1_20210702/output/
 
 # Remove reads with a quality of less than X %. If unset default is 80
 minquality=${minquality:-80}
+
+# minimum fastq file size in bytes
+minfastqsize=${minfastqsize:-100000}
 
 ##### settings end #####
 
@@ -93,9 +93,6 @@ checkCommand() {
 checkCommand samtools R minimap2 filtlong
 
 #fetch and check options provided by user
-#flags for required options, checked after getopts loop
-i_flag=0
-o_flag=0
 while getopts ":hi:t:vo:" opt; do
 case ${opt} in
   h )
@@ -111,7 +108,6 @@ case ${opt} in
     ;;
   i )
     input=$OPTARG
-    i_flag=1
     ;;
   t )
     max_threads=$OPTARG
@@ -122,7 +118,6 @@ case ${opt} in
     ;;
   o )
     output=$OPTARG
-    o_flag=1
     ;;
   \? )
     usageError "Invalid Option: -$OPTARG"
@@ -136,13 +131,13 @@ esac
 done
 shift $((OPTIND -1)) #reset option pointer
 
-#check all required options
-if [ $i_flag -eq 0 ]
+#check required options
+if [[ -z "$input" ]]
 then
-	usageError "option -i is required"
+  usageError "option -i is required"
 	exit 1
 fi
-if [ $o_flag -eq 0 ]
+if [[ -z "$output" ]]
 then
 	usageError "option -o is required"
 	exit 1
@@ -152,11 +147,18 @@ fi
 #print settings here?
 
 # Start workflow
-database_name=$(echo "${database_fasta}" | grep -o "[^/]*$" | grep -o "^[^\.]*")
+database_name=$(
+  echo "${database_fasta}" |\
+    grep -o "[^/]*$" |\
+    grep -o "^[^\.]*"
+)
 
-checkFolder output/
-checkFolder output/mapped
-checkFolder output/filtered/
+output_mapped="${output}/mapped"
+output_filtered="${output}/filtered"
+
+checkFolder "${output}"
+checkFolder "${output_mapped}"
+checkFolder "${output_filtered}"
 
 #decompress if files are gzip'ed
 scriptMessage "Decompressing fastq files if gzip'ed"
@@ -210,9 +212,9 @@ for file in "${output}"/concatenated/*.fastq
 do
   filename=$(basename "${file}" .fastq)
 
-  if [ -s "output/${filename}.idmapped.txt" ]
+  if [ -s "${output}/${filename}.idmapped.txt" ]
   then
-    echo "output/${filename}.idmapped.txt has already been generated"
+    echo "${output}/${filename}.idmapped.txt has already been generated"
   else
     #check if too few reads
     filesize=$(stat -c%s "${file}")
@@ -231,19 +233,19 @@ do
       --secondary=no \
       "$database_fasta" \
       -K20M "$file" > \
-      "output/mapped/${filename}.sam"
+      "${output_mapped}/${filename}.sam"
     
     scriptMessage "   ${filename}: Filtering mapping output..."
     samtools view \
       -F 256 \
       -F 4 \
-      -F 2048 "output/mapped/${filename}.sam" \
+      -F 2048 "${output_mapped}/${filename}.sam" \
       --threads "${max_threads}" \
-      -o "output/mapped/${filename}_nodupes.sam"
+      -o "${output_mapped}/${filename}_nodupes.sam"
 
     # Create mapping overview
     scriptMessage "   ${filename}: Creating mapping overview..."
-    sed '/^@/ d' "output/mapped/${filename}_nodupes.sam" | \
+    sed '/^@/ d' "${output_mapped}/${filename}_nodupes.sam" | \
       awk '{
         for(i=1;i<=NF;i++){
           if($i ~ /^NM:i:/){sub("NM:i:", "", $i); mm = $i}
@@ -256,12 +258,14 @@ do
         print $1, $2, $3, length($10), aln, (aln - mm)/aln, $12, $14, $20
         aln=0;
       }' | \
-      sed 's/time=/\t/' | sed 's/Zflow_cell.*barcode=/\t/' > "output/${filename}.idmapped.txt"
+      sed 's/time=/\t/' |\
+      sed 's/Zflow_cell.*barcode=/\t/' \
+      > "${output}/${filename}.idmapped.txt"
   fi
 done
 
 scriptMessage "Generating OTU/mapping table"
-R --slave --args "${max_threads}" "${database_tax}" "${database_name}" << 'makeOTUtable'
+R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output}" << 'makeOTUtable'
   #extract passed args from shell script
   args <- commandArgs(trailingOnly = TRUE)
   suppressPackageStartupMessages({
@@ -290,10 +294,10 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" << 'makeO
 
   #read mappings
   mappings<-data.frame(OTU=NULL,SeqID=NULL)
-  files<-list.files(path = "output/", pattern = ".idmapped.txt")
+  files<-list.files(path = args[[4]], pattern = ".idmapped.txt")
   for (file in files){
     mapping <- fread(
-      paste0("output/",file),
+      paste0(args[[4]], "/", file),
       header = FALSE,
       #select = c(3),
       #colClasses = "character",
@@ -311,7 +315,7 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" << 'makeO
   select(c("SeqID", "OTU"))
 
   # Write out detailed mappings
-  fwrite(mappings_s, "output/mappings_detailed.txt", quote = F, sep = "\t", row.names = F, col.names = T)
+  fwrite(mappings_s, paste0(args[[4]], "/mappings_detailed.txt"), quote = F, sep = "\t", row.names = F, col.names = T)
 
   # Define function for 
   #join taxonomy with mapping
@@ -324,7 +328,7 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" << 'makeO
   BIOMotutable[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species") := tstrsplit(taxonomy, ";", fixed=FALSE)]
   BIOMotutable[,taxonomy := NULL]
   #write out
-  fwrite(BIOMotutable, paste0("output/otutable_", args[[3]], ".txt"), sep = "\t", col.names = TRUE, na = "NA", quote = FALSE)
+  fwrite(BIOMotutable, paste0(args[[4]], "/otutable_", args[[3]], ".txt"), sep = "\t", col.names = TRUE, na = "NA", quote = FALSE)
 makeOTUtable
 
 duration=$(printf '%02dh:%02dm:%02ds\n' $((SECONDS/3600)) $((SECONDS%3600/60)) $((SECONDS%60)))
@@ -335,4 +339,3 @@ scriptMessage "Done in: $duration, enjoy!"
 #print elapsed time since script was invoked
 duration=$(printf '%02dh:%02dm:%02ds\n' $((SECONDS/3600)) $((SECONDS%3600/60)) $((SECONDS%60)))
 scriptMessage "Done in: $duration!"
-exit 0
