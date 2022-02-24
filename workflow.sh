@@ -214,6 +214,14 @@ do
   then
     echo "output/${filename}.idmapped.txt has already been generated"
   else
+    #check if too few reads
+    filesize=$(stat -c%s "${file}")
+	  if (( filesize < minfastqsize ))
+    then
+      scriptMessage "   ${filename}: Insufficient or no data, skipping..."
+      continue
+    fi
+
     # Map reads to reference database
     scriptMessage "   ${filename}: Mapping against database..."
     minimap2 \
