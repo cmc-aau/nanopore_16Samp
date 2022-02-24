@@ -162,7 +162,15 @@ checkFolder output/filtered/
 scriptMessage "Decompressing fastq files if gzip'ed"
 find "${input}" -iname '*.gz' -exec gunzip -q {} \;
 
-fastqfiles=$(find "${input}" -iname '*.f*q' -printf '%h\n' | sort -u)
+#find barcode folders, skipping unclassified
+fastqfiles=$(
+  find "${input}" \
+    -iname '*.f*q' \
+    ! -iregex ".*unclassified$" \
+    ! -iregex ".*unknown$" \
+    -printf '%h\n' |\
+  sort -u
+)
 if [ -z "${fastqfiles}" ]
 then
   echo "Error: no fastq files found in ${input}, exiting..."
