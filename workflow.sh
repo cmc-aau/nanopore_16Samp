@@ -143,131 +143,136 @@ then
 	exit 1
 fi
 
-##### START OF ACTUAL SCRIPT #####
-#print settings here?
-
 # Start workflow
+
+# generate a name for the database based on its file name
 database_name=$(
   echo "${database_fasta}" |\
     grep -o "[^/]*$" |\
     grep -o "^[^\.]*"
 )
 
-output_mapped="${output}/mapped"
-output_filtered="${output}/filtered"
-
 checkFolder "${output}"
-checkFolder "${output_mapped}"
-checkFolder "${output_filtered}"
 
 #decompress if files are gzip'ed
-scriptMessage "Decompressing fastq files if gzip'ed"
-find "${input}" -iname '*.gz' -exec gunzip -q {} \;
+scriptMessage "Decompressing f*q files if gzip'ed"
+find "${input}" -iname '*.f*q.gz' -exec gunzip -q {} \;
 
-#find barcode folders, skipping unclassified
-fastqfiles=$(
-  find "${input}" \
-    -iname '*.f*q' \
+demuxfolders=$(
+  find "${input}"/* \
+    -maxdepth 0 \
+    -type d \
     ! -iregex ".*unclassified$" \
-    ! -iregex ".*unknown$" \
-    -printf '%h\n' |\
-  sort -u
+    ! -iregex ".*unknown$"
 )
-if [ -z "${fastqfiles}" ]
-then
-  echo "Error: no fastq files found in ${input}, exiting..."
-  exit 1
-fi
 
-scriptMessage "Concatenating all reads for each barcode"
-for dirpath in ${fastqfiles}/
+scriptMessage "Mapping all reads from each barcode to database"
+for barcode in $demuxfolders
 do
-  barcodename=$(basename "${dirpath}")
-  if [ -s "${output}/concatenated/${barcodename}.fastq" ]
-  then
-    echo "${barcodename} has already been concatenated";
+  barcodename=$(basename "$barcode")
+	scriptMessage "Processing barcode: ${barcodename}"
+
+  barcodefolder="${output}/${barcodename}"
+  mkdir -p "$barcodefolder"
+
+  fastqfiles=$(find "$barcode" -type f -iname '*.f*q')
+
+	#continue with next folder if no fastq files found
+	if [ -z "$fastqfiles" ]
+	then
+	  scriptMessage "    (barcode: ${barcodename}): No fastq files found, skipping..."
+	  continue
+	fi
+
+	#concatenate all fastq files into one
+	barcode_allreads="${barcodefolder}/${barcodename}.fastq"
+	#but first check if barcode_allreads.fastq already exists (empty or not)
+	if [ -r "$barcode_allreads" ]
+	then
+	  scriptMessage "    (barcode: ${barcodename}): barcode_allreads.fastq file already exists, skipping concatenation of all reads..."
+	  # #use find -mindepth 1 to avoid removing the barcode folder itself
+		# #shellcheck disable=SC2046
+	  # rm -rf $(find "$barcodefolder" -mindepth 1 | grep -v 'barcode_allreads.fastq$') #don't quote
+  elif [ -n "$fastqfiles" ]
+	then
+    scriptMessage "    (barcode: ${barcodename}): Concatenating all fastq files into a single file..."
+		#dont quote $fastqfiles
+    #shellcheck disable=SC2086
+    cat $fastqfiles |\
+      sed 's/\(runid.*start_\)//' |\
+      tr -d '[:blank:]' > "$barcode_allreads"
+	fi
+
+	#first check if there is enough data
+	filesize=$(stat -c%s "$barcode_allreads")
+	if (( filesize < minfastqsize ))
+	then
+    scriptMessage "    (barcode: ${barcodename}): Insufficient or no data, skipping..."
+    continue
   else
-    (
-    mkdir -p "${output}/concatenated/"
-    scriptMessage "   concatenating ${barcodename}..."
-      cat "${dirpath}"/*.f*q | \
-      sed 's/\(runid.*start_\)//' | \
-      tr -d '[:blank:]' > "${output}/concatenated/${barcodename}.fastq"
-    )
+    mappingfile="${barcodefolder}/${barcodename}.idmapped.txt"
+    if [ -s "$mappingfile" ]
+    then
+      scriptMessage "    (barcode: ${barcodename}): Mapping file has already been generated, skipping..."
+    else
+      # Map reads to reference database
+      scriptMessage "    (barcode: ${barcodename}): Mapping against database..."
+      minimap2 \
+        -ax map-ont \
+        --cap-sw-mem="$memlimit" \
+        -t "$max_threads" \
+        --secondary=no \
+        "$database_fasta" \
+        -K20M "$barcode_allreads" > \
+        "${barcodefolder}/${barcodename}.sam"
+      
+      scriptMessage "    (barcode: ${barcodename}): Filtering mapping output..."
+      samtools view \
+        -F 256 \
+        -F 4 \
+        -F 2048 "${barcodefolder}/${barcodename}.sam" \
+        --threads "${max_threads}" \
+        -o "${barcodefolder}/${barcodename}_nodupes.sam"
+
+      # Create mapping overview
+      scriptMessage "    (barcode: ${barcodename}): Creating mapping overview..."
+      sed '/^@/ d' "${barcodefolder}/${barcodename}_nodupes.sam" | \
+        awk '{
+          for(i=1;i<=NF;i++){
+            if($i ~ /^NM:i:/){sub("NM:i:", "", $i); mm = $i}
+          }
+          split($6, count, /[^0-9]+/);
+          split($6, type, /[^A-Z]*/);
+          for(i=1; i<= length(count)-1; i++){
+            if(type[i + 1] ~ /[DIM]/){aln+=count[i]};
+          }
+          print $1, $2, $3, length($10), aln, (aln - mm)/aln, $12, $14, $20
+          aln=0;
+        }' | \
+        sed 's/time=/\t/' |\
+        sed 's/Zflow_cell.*barcode=/\t/' \
+        > "$mappingfile"
+    fi
   fi
-done  
+done
 
 # Filter reads based on quality
 #scriptMessage "Filtering low quality reads <${minquality}"
 #for f in $input/concatenated/*.fastq; do
-#filename=$(basename "$f" .fastq)
-#if [ -s output/filtered/$filename.filtered.fastq ]; then echo "output/filtered/$filename.filtered.fastq has already been generated";  
+#barcodename=$(basename "$f" .fastq)
+#if [ -s output/filtered/$barcodename.filtered.fastq ]; then echo "output/filtered/$barcodename.filtered.fastq has already been generated";  
 #else
 #filtlong --min_mean_q $minquality $f > \
-#  output/filtered/$filename.filtered.fastq
+#  output/filtered/$barcodename.filtered.fastq
 #fi
 
-scriptMessage "Mapping all reads for each barcode to the database"
-for file in "${output}"/concatenated/*.fastq
-do
-  filename=$(basename "${file}" .fastq)
 
-  if [ -s "${output}/${filename}.idmapped.txt" ]
-  then
-    echo "${output}/${filename}.idmapped.txt has already been generated"
-  else
-    #check if too few reads
-    filesize=$(stat -c%s "${file}")
-	  if (( filesize < minfastqsize ))
-    then
-      scriptMessage "   ${filename}: Insufficient or no data, skipping..."
-      continue
-    fi
-
-    # Map reads to reference database
-    scriptMessage "   ${filename}: Mapping against database..."
-    minimap2 \
-      -ax map-ont \
-      --cap-sw-mem="$memlimit" \
-      -t "$max_threads" \
-      --secondary=no \
-      "$database_fasta" \
-      -K20M "$file" > \
-      "${output_mapped}/${filename}.sam"
-    
-    scriptMessage "   ${filename}: Filtering mapping output..."
-    samtools view \
-      -F 256 \
-      -F 4 \
-      -F 2048 "${output_mapped}/${filename}.sam" \
-      --threads "${max_threads}" \
-      -o "${output_mapped}/${filename}_nodupes.sam"
-
-    # Create mapping overview
-    scriptMessage "   ${filename}: Creating mapping overview..."
-    sed '/^@/ d' "${output_mapped}/${filename}_nodupes.sam" | \
-      awk '{
-        for(i=1;i<=NF;i++){
-          if($i ~ /^NM:i:/){sub("NM:i:", "", $i); mm = $i}
-        }
-        split($6, count, /[^0-9]+/);
-        split($6, type, /[^A-Z]*/);
-        for(i=1; i<= length(count)-1; i++){
-          if(type[i + 1] ~ /[DIM]/){aln+=count[i]};
-        }
-        print $1, $2, $3, length($10), aln, (aln - mm)/aln, $12, $14, $20
-        aln=0;
-      }' | \
-      sed 's/time=/\t/' |\
-      sed 's/Zflow_cell.*barcode=/\t/' \
-      > "${output}/${filename}.idmapped.txt"
-  fi
-done
-
-scriptMessage "Generating OTU/mapping table"
+scriptMessage "Generating abundance table"
 R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output}" << 'makeOTUtable'
   #extract passed args from shell script
   args <- commandArgs(trailingOnly = TRUE)
+
+  #load required package
   suppressPackageStartupMessages({
     if(!require("data.table")) {
       install.packages("data.table")
@@ -283,59 +288,95 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
     }
   })
 
+  #set max threads for data.table
   setDTthreads(as.integer(args[[1]]))
 
   #read taxonomy
-  taxDB <- fread(args[[2]],
-                header = FALSE,
-                sep = "\t",
-                colClasses = "character",
-                col.names = c("OTU", "tax"))
+  taxDB <- fread(
+    args[[2]],
+    header = FALSE,
+    sep = "\t",
+    colClasses = "character",
+    col.names = c("OTU", "tax")
+  )
 
   #read mappings
-  mappings<-data.frame(OTU=NULL,SeqID=NULL)
-  files<-list.files(path = args[[4]], pattern = ".idmapped.txt")
-  for (file in files){
+  mappings <- data.frame(OTU=NULL, SeqID=NULL)
+
+  files <- list.files(
+    path = args[[4]],
+    recursive = TRUE,
+    pattern = ".idmapped.txt"
+  )
+
+  for (file in files) {
     mapping <- fread(
       paste0(args[[4]], "/", file),
       header = FALSE,
       #select = c(3),
       #colClasses = "character",
-    col.names = c("readID", "read_time", "add_info")
+      col.names = c("readID", "read_time", "add_info")
     ) %>% 
-      separate(add_info, c("barcode", "SAMflag", "OTU", "Qlen", "alnlen", "MapID", "NMtag", "alnscore", "MinimapID"), " ") %>%
-      mutate(SeqID=sub(".idmapped.txt","",file))
-    mappings<-rbind(mappings,mapping)
+      separate(
+        add_info,
+        c(
+          "barcode",
+          "SAMflag",
+          "OTU",
+          "Qlen",
+          "alnlen",
+          "MapID",
+          "NMtag",
+          "alnscore",
+          "MinimapID"
+        ),
+        " ") %>%
+      mutate(SeqID = sub(".idmapped.txt", "", file))
+    mappings <- rbind(mappings, mapping)
   }
 
   # Subset mappings based on 
-  mappings_s <- mappings %>% mutate(Qr = as.numeric(Qlen)/as.numeric(alnlen)) %>% 
-  subset(., Qr < 1.15 & Qr > 0.85)
-  mappings_to_otu <- mappings_s %>% 
-  select(c("SeqID", "OTU"))
+  mappings_s <- mappings %>%
+    mutate(Qr = as.numeric(Qlen) / as.numeric(alnlen)) %>%
+    subset(Qr < 1.15 & Qr > 0.85)
+  mappings_to_otu <- mappings_s %>%
+    select(c("SeqID", "OTU"))
 
   # Write out detailed mappings
-  fwrite(mappings_s, paste0(args[[4]], "/mappings_detailed.txt"), quote = F, sep = "\t", row.names = F, col.names = T)
+  fwrite(
+    mappings_s,
+    paste0(args[[4]], "/mappings_detailed.txt"),
+    quote = FALSE,
+    sep = "\t",
+    row.names = FALSE,
+    col.names = TRUE
+  )
 
   # Define function for 
   #join taxonomy with mapping
   joined <- taxDB[mappings_to_otu, on = "OTU"]
 
   #transform into "OTU table", where rows are OTU's, columns are sample AND taxonomy
-  BIOMotutable <- dcast(joined, OTU + tax ~ SeqID, fun.aggregate = length) %>% setDT()
+  BIOMotutable <- dcast(
+    joined,
+    OTU + tax ~ SeqID,
+    fun.aggregate = length
+  )
+  setDT(BIOMotutable)
   BIOMotutable[,taxonomy := gsub("[a-z]__", "", tax)]
   BIOMotutable[,tax := NULL]
   BIOMotutable[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species") := tstrsplit(taxonomy, ";", fixed=FALSE)]
   BIOMotutable[,taxonomy := NULL]
   #write out
-  fwrite(BIOMotutable, paste0(args[[4]], "/otutable_", args[[3]], ".txt"), sep = "\t", col.names = TRUE, na = "NA", quote = FALSE)
+  fwrite(
+    BIOMotutable,
+    paste0(args[[4]], "/otutable_", args[[3]], ".txt"),
+    sep = "\t",
+    col.names = TRUE,
+    na = "NA",
+    quote = FALSE
+  )
 makeOTUtable
 
 duration=$(printf '%02dh:%02dm:%02ds\n' $((SECONDS/3600)) $((SECONDS%3600/60)) $((SECONDS%60)))
-scriptMessage "Done in: $duration, enjoy!"
-
-##### END OF ACTUAL SCRIPT #####
-
-#print elapsed time since script was invoked
-duration=$(printf '%02dh:%02dm:%02ds\n' $((SECONDS/3600)) $((SECONDS%3600/60)) $((SECONDS%60)))
-scriptMessage "Done in: $duration!"
+scriptMessage "Done! Time elapsed: $duration"
