@@ -1,3 +1,8 @@
 testdata/
 
 output/
+.Rproj.user
+
+test_run/
+
+*.Rproj
