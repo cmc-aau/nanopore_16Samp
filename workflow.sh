@@ -223,8 +223,8 @@ do
         -t "$max_threads" \
         --secondary=no \
         "$database_fasta" \
-        -K20M "$barcode_allreads" > \
-        "${barcodefolder}/${barcodename}.sam"
+        -K20M "$barcode_allreads" \
+        > "${barcodefolder}/${barcodename}.sam"
       
       scriptMessage "    (barcode: ${barcodename}): Filtering mapping output..."
       samtools view \
@@ -278,14 +278,6 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
       install.packages("data.table")
       require("data.table")
     }
-    if(!require("dplyr")) {
-      install.packages("dplyr")
-      require("dplyr")
-    }
-    if(!require("tidyr")) {
-      install.packages("tidyr")
-      require("tidyr")
-    }
   })
 
   #set max threads for data.table
@@ -300,51 +292,51 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
     col.names = c("OTU", "tax")
   )
 
-  #read mappings
-  mappings <- data.frame(OTU=NULL, SeqID=NULL)
-
   files <- list.files(
     path = args[[4]],
     recursive = TRUE,
     pattern = ".idmapped.txt"
   )
 
-  for (file in files) {
+  mappings <- lapply(files, function(file) {
     mapping <- fread(
       paste0(args[[4]], "/", file),
       header = FALSE,
-      #select = c(3),
-      #colClasses = "character",
+      sep = "\t",
       col.names = c("readID", "read_time", "add_info")
-    ) %>% 
-      separate(
-        add_info,
-        c(
-          "barcode",
-          "SAMflag",
-          "OTU",
-          "Qlen",
-          "alnlen",
-          "MapID",
-          "NMtag",
-          "alnscore",
-          "MinimapID"
-        ),
-        " ") %>%
-      mutate(SeqID = sub(".idmapped.txt", "", file))
-    mappings <- rbind(mappings, mapping)
-  }
+    )
+    mapping[, c(
+      "barcode",
+      "SAMflag",
+      "OTU",
+      "Qlen",
+      "alnlen",
+      "MapID",
+      "NMtag",
+      "alnscore",
+      "MinimapID"
+    ) := tstrsplit(
+      add_info,
+      split = " ",
+      fixed=TRUE,
+      type.convert = TRUE
+    )]
+    mapping[,add_info := NULL]
+    mapping[, barcode := gsub("^.*=", "", barcode)]
+  })
+  names(mappings) <- gsub("/.*$", "", files)
 
-  # Subset mappings based on 
-  mappings_s <- mappings %>%
-    mutate(Qr = as.numeric(Qlen) / as.numeric(alnlen)) %>%
-    subset(Qr < 1.15 & Qr > 0.85)
-  mappings_to_otu <- mappings_s %>%
-    select(c("SeqID", "OTU"))
+  mappings <- rbindlist(
+    mappings,
+    idcol = "SeqID"
+  )
+
+  #filter mappings, only good ones
+  mappings <- mappings[, Qr := Qlen / alnlen][Qr < 1.15 & Qr > 0.85]
 
   # Write out detailed mappings
   fwrite(
-    mappings_s,
+    mappings,
     paste0(args[[4]], "/mappings_detailed.txt"),
     quote = FALSE,
     sep = "\t",
@@ -352,30 +344,30 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
     col.names = TRUE
   )
 
-  # Define function for 
   #join taxonomy with mapping
-  joined <- taxDB[mappings_to_otu, on = "OTU"]
+  joined <- taxDB[mappings[,c("SeqID", "OTU")], on = "OTU"]
 
-  #transform into "OTU table", where rows are OTU's, columns are sample AND taxonomy
-  BIOMotutable <- dcast(
+  #transform into a merged "OTU table", which includes both abundances and taxonomy (old school ampvis format)
+  otutable <- dcast(
     joined,
     OTU + tax ~ SeqID,
     fun.aggregate = length
   )
-  setDT(BIOMotutable)
-  BIOMotutable[,taxonomy := gsub("[a-z]__", "", tax)]
-  BIOMotutable[,tax := NULL]
-  BIOMotutable[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species") := tstrsplit(taxonomy, ";", fixed=FALSE)]
-  BIOMotutable[,taxonomy := NULL]
+
+  #move tax column to the end and split it up into separate tax levels
+  otutable[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species") := tstrsplit(tax, ";", fixed=FALSE)]
+  otutable[, tax := NULL]
+
   #write out
   fwrite(
-    BIOMotutable,
-    paste0(args[[4]], "/otutable_", args[[3]], ".txt"),
+    otutable,
+    paste0(args[[4]], "/otutable.tsv"),
     sep = "\t",
     col.names = TRUE,
     na = "NA",
     quote = FALSE
   )
+
 makeOTUtable
 
 duration=$(printf '%02dh:%02dm:%02ds\n' $((SECONDS/3600)) $((SECONDS%3600/60)) $((SECONDS%60)))
