@@ -15,10 +15,10 @@ set -o pipefail
 
 version="1.2"
 
-#use all logical cores except 2 unless adjusted by user
+# Use all logical cores except 2 unless adjusted by user
 max_threads=${max_threads:-$(($(nproc)-2))}
 
-#maximum memory in GB for minimap2. If unset default is max available minus 4GB
+# Maximum memory in GB for minimap2. If unset default is max available minus 4GB
 memlimit=${memlimit:-"$(($(free -g | awk '/^Mem:/{print $7}') - 4))g"}
 
 # Path to fasta file used for mapping
@@ -30,7 +30,7 @@ database_tax=${database_tax:-"/space/databases/midas/MiDAS4.8.1_20210702/output/
 # Remove reads with a quality of less than X %. If unset default is 80
 minquality=${minquality:-80}
 
-# minimum fastq file size in bytes
+# Minimum fastq file size in bytes
 minfastqsize=${minfastqsize:-100000}
 
 ##### settings end #####
@@ -154,6 +154,11 @@ database_name=$(
 
 checkFolder "${output}"
 
+# File for summarizing number of reads per barcode
+total_reads_file="${output}/totalreads.csv"
+#clear total reads file
+true > "$total_reads_file"
+
 #decompress if files are gzip'ed
 scriptMessage "Decompressing f*q files if gzip'ed"
 find "${input}" -iname '*.f*q.gz' -exec gunzip -q {} \;
@@ -211,6 +216,12 @@ do
     continue
   else
     mappingfile="${barcodefolder}/${barcodename}.idmapped.txt"
+
+    scriptMessage "    (barcode: ${barcodename}): Counting total number of reads..."
+    num_reads=$(($(wc -l < "$barcode_allreads") / 4))
+    echo "${barcodename},${num_reads}" >> "$total_reads_file"
+    scriptMessage "    (barcode: ${barcodename}): ${num_reads} total reads"
+
     if [ -s "$mappingfile" ]
     then
       scriptMessage "    (barcode: ${barcodename}): Mapping file has already been generated, skipping..."
@@ -331,7 +342,7 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
     idcol = "SeqID"
   )
 
-  #filter mappings, only good ones
+  #filter mappings, only 15% difference in length between alignment part and query seq
   mappings <- mappings[, Qr := Qlen / alnlen][Qr < 1.15 & Qr > 0.85]
 
   # Write out detailed mappings
@@ -353,8 +364,7 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
     OTU + tax ~ SeqID,
     fun.aggregate = length
   )
-
-  #move tax column to the end and split it up into separate tax levels
+  #split up taxonomy column into separate columns with tax levels
   otutable[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species") := tstrsplit(tax, ";", fixed=FALSE)]
   otutable[, tax := NULL]
 
