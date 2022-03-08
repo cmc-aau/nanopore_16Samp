@@ -90,7 +90,7 @@ checkCommand() {
 }
 
 #check for all required commands before anything
-checkCommand samtools R minimap2 filtlong
+checkCommand samtools R minimap2 #filtlong
 
 #fetch and check options provided by user
 while getopts ":hi:t:vo:" opt; do
@@ -160,7 +160,7 @@ total_reads_file="${output}/totalreads.csv"
 true > "$total_reads_file"
 
 #decompress if files are gzip'ed
-scriptMessage "Decompressing f*q files if gzip'ed"
+scriptMessage "Decompressing f*q files (in-place) if gzip'ed"
 find "${input}" -iname '*.f*q.gz' -exec gunzip -q {} \;
 
 demuxfolders=$(
@@ -277,15 +277,14 @@ done
 #  output/filtered/$barcodename.filtered.fastq
 #fi
 
-
 scriptMessage "Generating abundance table"
-R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output}" << 'makeOTUtable'
+R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output}" "${total_reads_file}" << 'makeOTUtable'
   #extract passed args from shell script
   args <- commandArgs(trailingOnly = TRUE)
 
   #load required package
   suppressPackageStartupMessages({
-    if(!require("data.table")) {
+    if (!require("data.table")) {
       install.packages("data.table")
       require("data.table")
     }
@@ -295,7 +294,7 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
   setDTthreads(as.integer(args[[1]]))
 
   #read taxonomy
-  taxDB <- fread(
+  tax_db <- fread(
     args[[2]],
     header = FALSE,
     sep = "\t",
@@ -329,10 +328,10 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
     ) := tstrsplit(
       add_info,
       split = " ",
-      fixed=TRUE,
+      fixed = TRUE,
       type.convert = TRUE
     )]
-    mapping[,add_info := NULL]
+    mapping[, add_info := NULL]
     mapping[, barcode := gsub("^.*=", "", barcode)]
   })
   names(mappings) <- gsub("/.*$", "", files)
@@ -342,7 +341,8 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
     idcol = "SeqID"
   )
 
-  #filter mappings, only 15% difference in length between alignment part and query seq
+  #filter mappings, only 15% difference in
+  #length between alignment part and query seq
   mappings <- mappings[, Qr := Qlen / alnlen][Qr < 1.15 & Qr > 0.85]
 
   # Write out detailed mappings
@@ -356,28 +356,80 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
   )
 
   #join taxonomy with mapping
-  joined <- taxDB[mappings[,c("SeqID", "OTU")], on = "OTU"]
+  joined <- tax_db[mappings[, c("SeqID", "OTU")], on = "OTU"]
 
-  #transform into a merged "OTU table", which includes both abundances and taxonomy (old school ampvis format)
+  #transform into a merged "OTU table",
+  #includes both abundances and taxonomy (old school ampvis format)
   otutable <- dcast(
     joined,
     OTU + tax ~ SeqID,
     fun.aggregate = length
   )
+
+  tax_levels <- c(
+    "Kingdom",
+    "Phylum",
+    "Class",
+    "Order",
+    "Family",
+    "Genus",
+    "Species"
+  )
+
   #split up taxonomy column into separate columns with tax levels
-  otutable[, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species") := tstrsplit(tax, ";", fixed=FALSE)]
+  otutable[, c(tax_levels) := tstrsplit(tax, ";", fixed = FALSE)]
   otutable[, tax := NULL]
 
-  #write out
+  #write out non-normalised table
   fwrite(
     otutable,
-    paste0(args[[4]], "/otutable.tsv"),
+    paste0(args[[4]], "/otutable_mappedreads.tsv"),
     sep = "\t",
     col.names = TRUE,
     na = "NA",
     quote = FALSE
   )
 
+  #get total reads per sample
+  total_reads <- fread(
+    args[[5]],
+    header = FALSE,
+    sep = ",",
+    col.names = c("barcode", "reads"),
+    colClasses = c("character", "integer")
+  )
+
+  #extract abundances to be able to normalise to total reads
+  abund <- otutable[, -c("OTU", ..tax_levels)]
+
+  #make sure the order of barcodes is identical between otutable+reads
+  total_reads[, barcode := factor(barcode, colnames(abund))]
+  total_reads <- total_reads[order(barcode)]
+
+  #normalise to total reads per barcode, in pct, rounded
+  abund[] <- sweep(
+    abund,
+    2,
+    total_reads[, reads],
+    "/"
+  ) * 100
+  abund[] <- round(abund, digits = 4)
+
+  #stitch together normalised otutable and write out
+  otutable_norm <- data.table(
+    otutable[, "OTU"],
+    abund,
+    otutable[, ..tax_levels]
+  )
+
+  fwrite(
+    otutable_norm,
+    paste0(args[[4]], "/otutable_normalised.tsv"),
+    sep = "\t",
+    col.names = TRUE,
+    na = "NA",
+    quote = FALSE
+  )
 makeOTUtable
 
 duration=$(printf '%02dh:%02dm:%02ds\n' $((SECONDS/3600)) $((SECONDS%3600/60)) $((SECONDS%60)))
