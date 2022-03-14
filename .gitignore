@@ -6,3 +6,6 @@ output/
 test_run/
 
 *.Rproj
+
+*.fastq
+*.fast5
