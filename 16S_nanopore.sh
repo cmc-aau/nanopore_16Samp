@@ -13,7 +13,7 @@ set -o pipefail
 #print exactly what gets executed (useful for debugging)
 #set -o xtrace
 
-version="1.2"
+version="1.3"
 
 # Use all logical cores except 2 unless adjusted by user
 max_threads=${max_threads:-$(($(nproc)-2))}
@@ -259,9 +259,7 @@ do
           }
           print $1, $2, $3, length($10), aln, (aln - mm)/aln, $12, $14, $20
           aln=0;
-        }' | \
-        sed 's/time=/\t/' |\
-        sed 's/Zflow_cell.*barcode=/\t/' \
+        }' \
         > "$mappingfile"
     fi
   fi
@@ -312,33 +310,26 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
     mapping <- fread(
       paste0(args[[4]], "/", file),
       header = FALSE,
-      sep = "\t",
-      col.names = c("readID", "read_time", "add_info")
+      sep = " ",
+      col.names = c(
+        "readID",
+        "SAMflag",
+        "OTU",
+        "Qlen",
+        "alnlen",
+        "MapID",
+        "NMtag",
+        "alnscore",
+        "MinimapID"
+      )
     )
-    mapping[, c(
-      "barcode",
-      "SAMflag",
-      "OTU",
-      "Qlen",
-      "alnlen",
-      "MapID",
-      "NMtag",
-      "alnscore",
-      "MinimapID"
-    ) := tstrsplit(
-      add_info,
-      split = " ",
-      fixed = TRUE,
-      type.convert = TRUE
-    )]
-    mapping[, add_info := NULL]
-    mapping[, barcode := gsub("^.*=", "", barcode)]
+    mapping
   })
   names(mappings) <- gsub("/.*$", "", files)
 
   mappings <- rbindlist(
     mappings,
-    idcol = "SeqID"
+    idcol = "barcode"
   )
 
   #filter mappings, only 15% difference in
@@ -356,13 +347,13 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
   )
 
   #join taxonomy with mapping
-  joined <- tax_db[mappings[, c("SeqID", "OTU")], on = "OTU"]
+  joined <- tax_db[mappings[, c("barcode", "OTU")], on = "OTU"]
 
   #transform into a merged "OTU table",
   #includes both abundances and taxonomy (old school ampvis format)
   otutable <- dcast(
     joined,
-    OTU + tax ~ SeqID,
+    OTU + tax ~ barcode,
     fun.aggregate = length
   )
 

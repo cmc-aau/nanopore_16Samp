@@ -1,6 +1,6 @@
 # Full-length 16S nanopore workflow
 
-Bash script to map reads against a taxonomic database and produce a abundance table compatible with ampvis2.
+Bash script to map reads against a taxonomic database and produce an abundance table compatible with ampvis2.
 
 ## Requirements
 
