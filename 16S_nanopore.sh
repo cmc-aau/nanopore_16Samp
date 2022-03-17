@@ -306,6 +306,10 @@ R --slave --args "${max_threads}" "${database_tax}" "${output}" "${total_reads_f
     pattern = ".idmapped.txt"
   )
 
+  if (length(files) == 0L) {
+    stop("There are no mapping files to process. Exiting...", call. = FALSE)
+  }
+
   mappings <- lapply(files, function(file) {
     mapping <- fread(
       paste0(args[[3]], "/", file),
