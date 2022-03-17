@@ -13,7 +13,7 @@ set -o pipefail
 #print exactly what gets executed (useful for debugging)
 #set -o xtrace
 
-version="1.3"
+version="1.3.1"
 
 # Use all logical cores except 2 unless adjusted by user
 max_threads=${max_threads:-$(($(nproc)-2))}
