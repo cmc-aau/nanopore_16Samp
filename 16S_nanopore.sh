@@ -145,12 +145,20 @@ fi
 
 # Start workflow
 
-# generate a name for the database based on its file name
-database_name=$(
-  echo "${database_fasta}" |\
-    grep -o "[^/]*$" |\
-    grep -o "^[^\.]*"
+demuxfolders=$(
+  find "${input}"/ \
+    -maxdepth 1 \
+    -mindepth 1 \
+    -type d \
+    ! -iregex ".*unclassified$" \
+    ! -iregex ".*unknown$"
 )
+
+if [ -z "$demuxfolders" ]
+then
+  echo "Error: There are no barcode subfolders in ${input}"
+  exit 1
+fi
 
 checkFolder "${output}"
 
@@ -162,14 +170,6 @@ true > "$total_reads_file"
 #decompress if files are gzip'ed
 scriptMessage "Decompressing f*q files (in-place) if gzip'ed"
 find "${input}" -iname '*.f*q.gz' -exec gunzip -q {} \;
-
-demuxfolders=$(
-  find "${input}"/* \
-    -maxdepth 0 \
-    -type d \
-    ! -iregex ".*unclassified$" \
-    ! -iregex ".*unknown$"
-)
 
 scriptMessage "Mapping all reads from each barcode to database"
 for barcode in $demuxfolders
