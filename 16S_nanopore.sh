@@ -101,7 +101,7 @@ case ${opt} in
     echo "Options:"
     echo "  -h    Display this help text and exit."
     echo "  -v    Print version and exit."
-    echo "  -i    (required) Input fastq_pass folder."
+    echo "  -i    (required) Input fastq_pass folder with subfolders for each barcode."
     echo "  -o    (required) Output folder."
     echo "  -t    Max number of max_threads to use. (Default: all available except 2)"
     exit 1
@@ -276,7 +276,7 @@ done
 #fi
 
 scriptMessage "Generating abundance table"
-R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output}" "${total_reads_file}" << 'makeOTUtable'
+R --slave --args "${max_threads}" "${database_tax}" "${output}" "${total_reads_file}" << 'makeOTUtable'
   #extract passed args from shell script
   args <- commandArgs(trailingOnly = TRUE)
 
@@ -301,14 +301,14 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
   )
 
   files <- list.files(
-    path = args[[4]],
+    path = args[[3]],
     recursive = TRUE,
     pattern = ".idmapped.txt"
   )
 
   mappings <- lapply(files, function(file) {
     mapping <- fread(
-      paste0(args[[4]], "/", file),
+      paste0(args[[3]], "/", file),
       header = FALSE,
       sep = " ",
       col.names = c(
@@ -339,7 +339,7 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
   # Write out detailed mappings
   fwrite(
     mappings,
-    paste0(args[[4]], "/mappings_detailed.txt"),
+    paste0(args[[3]], "/mappings_detailed.txt"),
     quote = FALSE,
     sep = "\t",
     row.names = FALSE,
@@ -374,7 +374,7 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
   #write out non-normalised table
   fwrite(
     otutable,
-    paste0(args[[4]], "/otutable_mappedreads.tsv"),
+    paste0(args[[3]], "/otutable_mappedreads.tsv"),
     sep = "\t",
     col.names = TRUE,
     na = "NA",
@@ -383,7 +383,7 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
 
   #get total reads per sample
   total_reads <- fread(
-    args[[5]],
+    args[[4]],
     header = FALSE,
     sep = ",",
     col.names = c("barcode", "reads"),
@@ -415,7 +415,7 @@ R --slave --args "${max_threads}" "${database_tax}" "${database_name}" "${output
 
   fwrite(
     otutable_norm,
-    paste0(args[[4]], "/otutable_normalised.tsv"),
+    paste0(args[[3]], "/otutable_normalised.tsv"),
     sep = "\t",
     col.names = TRUE,
     na = "NA",
