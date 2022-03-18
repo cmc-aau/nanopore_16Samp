@@ -13,7 +13,7 @@ set -o pipefail
 #print exactly what gets executed (useful for debugging)
 #set -o xtrace
 
-version="1.3.1"
+version="1.3.2"
 
 # Use all logical cores except 2 unless adjusted by user
 max_threads=${max_threads:-$(($(nproc)-2))}
@@ -144,6 +144,19 @@ then
 fi
 
 # Start workflow
+
+#check files first
+if [ ! -s "$database_fasta" ]
+then
+  echo "Error: database fasta file doesn't exist or is empty"
+  exit 1
+fi
+
+if [ ! -s "$database_tax" ]
+then
+  echo "Error: database taxonomy file doesn't exist or is empty"
+  exit 1
+fi
 
 demuxfolders=$(
   find "${input}"/ \
