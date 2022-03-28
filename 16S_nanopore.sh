@@ -7,16 +7,13 @@ set -o errexit
 # exit when a pipe fails
 set -o pipefail
 
-# set ulimit
-ulimit -n 1000000
-
 #disallow clobbering (overwriting) of files
 #set -o noclobber
 
 #print exactly what gets executed (useful for debugging)
 #set -o xtrace
 
-version="1.3.3"
+version="1.3.4"
 
 # Use all logical cores except 2 unless adjusted by user
 max_threads=${max_threads:-$(($(nproc)-2))}
@@ -230,10 +227,12 @@ do
     #old headers and new headers are written to a CSV file to be able to backtrack
     echo -e "\"old_seqid\"\t\"new_seqid\"" > "$seqid_rename_file"
     awk -v file="$seqid_rename_file" '{
+        cmd="echo " $0 " | shasum -a 256"
         if (NR%4 == 1) {
             old_seqid=$0
-            "echo " $0 " | shasum -a 256" | getline checksum;
+            cmd | getline checksum;
             $0="@"checksum; #overwrite header and append "@"
+            close(cmd)
             $0=$1; #removes trailing "  -" from shasum output
             print "\""old_seqid"\"""\t""\""$0"\"" >> file;
         }
