@@ -7,13 +7,16 @@ set -o errexit
 # exit when a pipe fails
 set -o pipefail
 
+# set ulimit
+ulimit -n 1000000
+
 #disallow clobbering (overwriting) of files
 #set -o noclobber
 
 #print exactly what gets executed (useful for debugging)
 #set -o xtrace
 
-version="1.3.2"
+version="1.3.3"
 
 # Use all logical cores except 2 unless adjusted by user
 max_threads=${max_threads:-$(($(nproc)-2))}
@@ -204,25 +207,44 @@ do
 
 	#concatenate all fastq files into one
 	barcode_allreads="${barcodefolder}/${barcodename}.fastq"
-	#but first check if barcode_allreads.fastq already exists (empty or not)
+  barcode_allreads_renamed="${barcodefolder}/${barcodename}_renamed.fastq"
+	#but first check if barcode_allreads_renamed.fastq already exists (empty or not)
 	if [ -r "$barcode_allreads" ]
 	then
 	  scriptMessage "    (barcode: ${barcodename}): barcode_allreads.fastq file already exists, skipping concatenation of all reads..."
 	  # #use find -mindepth 1 to avoid removing the barcode folder itself
 		# #shellcheck disable=SC2046
-	  # rm -rf $(find "$barcodefolder" -mindepth 1 | grep -v 'barcode_allreads.fastq$') #don't quote
+	  # rm -rf $(find "$barcodefolder" -mindepth 1 | grep -v 'barcode_allreads_renamed.fastq$') #don't quote
   elif [ -n "$fastqfiles" ]
 	then
     scriptMessage "    (barcode: ${barcodename}): Concatenating all fastq files into a single file..."
 		#dont quote $fastqfiles
     #shellcheck disable=SC2086
-    cat $fastqfiles |\
-      sed 's/\(runid.*start_\)//' |\
-      tr -d '[:blank:]' > "$barcode_allreads"
+    cat $fastqfiles > "$barcode_allreads"
+
+    scriptMessage "    (barcode: ${barcodename}): Replacing sequence headers in fastq file with sha-256 checksums (be patient)..."
+    seqid_rename_file="${barcodefolder}/seqid_checksums.tsv"
+    rm -rf "$seqid_rename_file"
+    #replaces fastq headers with a sha-256 checksum of them
+    #to shorten them so samtools doesn't complain its too long
+    #old headers and new headers are written to a CSV file to be able to backtrack
+    echo -e "\"old_seqid\"\t\"new_seqid\"" > "$seqid_rename_file"
+    awk -v file="$seqid_rename_file" '{
+        if (NR%4 == 1) {
+            old_seqid=$0
+            "echo " $0 " | shasum -a 256" | getline checksum;
+            $0="@"checksum; #overwrite header and append "@"
+            $0=$1; #removes trailing "  -" from shasum output
+            print "\""old_seqid"\"""\t""\""$0"\"" >> file;
+        }
+        print $0;
+    }' "$barcode_allreads" >\
+      "$barcode_allreads_renamed"
+
 	fi
 
 	#first check if there is enough data
-	filesize=$(stat -c%s "$barcode_allreads")
+	filesize=$(stat -c%s "$barcode_allreads_renamed")
 	if (( filesize < minfastqsize ))
 	then
     scriptMessage "    (barcode: ${barcodename}): Insufficient or no data, skipping..."
@@ -231,7 +253,7 @@ do
     mappingfile="${barcodefolder}/${barcodename}.idmapped.txt"
 
     scriptMessage "    (barcode: ${barcodename}): Counting total number of reads..."
-    num_reads=$(($(wc -l < "$barcode_allreads") / 4))
+    num_reads=$(($(wc -l < "$barcode_allreads_renamed") / 4))
     echo "${barcodename},${num_reads}" >> "$total_reads_file"
     scriptMessage "    (barcode: ${barcodename}): ${num_reads} total reads"
 
@@ -247,7 +269,7 @@ do
         -t "$max_threads" \
         --secondary=no \
         "$database_fasta" \
-        -K20M "$barcode_allreads" \
+        -K20M "$barcode_allreads_renamed" \
         > "${barcodefolder}/${barcodename}.sam"
       
       scriptMessage "    (barcode: ${barcodename}): Filtering mapping output..."
