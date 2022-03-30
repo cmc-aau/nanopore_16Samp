@@ -13,7 +13,7 @@ set -o pipefail
 #print exactly what gets executed (useful for debugging)
 #set -o xtrace
 
-version="1.3.4"
+version="1.3.5"
 
 # Use all logical cores except 2 unless adjusted by user
 max_threads=${max_threads:-$(($(nproc)-2))}
@@ -202,7 +202,7 @@ do
 	  continue
 	fi
 
-	#concatenate all fastq files into one
+	#all fastq files will be concatenated into a single one
 	barcode_allreads="${barcodefolder}/${barcodename}.fastq"
   barcode_allreads_renamed="${barcodefolder}/${barcodename}_renamed.fastq"
 	#but first check if barcode_allreads_renamed.fastq already exists (empty or not)
@@ -219,27 +219,30 @@ do
     #shellcheck disable=SC2086
     cat $fastqfiles > "$barcode_allreads"
 
-    scriptMessage "    (barcode: ${barcodename}): Replacing sequence headers in fastq file with sha-256 checksums (be patient)..."
+    scriptMessage "    (barcode: ${barcodename}): Replacing sequence headers in fastq file with sha-256 checksums of themselves..."
     seqid_rename_file="${barcodefolder}/seqid_checksums.tsv"
-    rm -rf "$seqid_rename_file"
     #replaces fastq headers with a sha-256 checksum of them
     #to shorten them so samtools doesn't complain its too long
     #old headers and new headers are written to a CSV file to be able to backtrack
-    echo -e "\"old_seqid\"\t\"new_seqid\"" > "$seqid_rename_file"
-    awk -v file="$seqid_rename_file" '{
-        cmd="echo " $0 " | shasum -a 256"
-        if (NR%4 == 1) {
-            old_seqid=$0
-            cmd | getline checksum;
-            $0="@"checksum; #overwrite header and append "@"
-            close(cmd)
-            $0=$1; #removes trailing "  -" from shasum output
-            print "\""old_seqid"\"""\t""\""$0"\"" >> file;
-        }
-        print $0;
-    }' "$barcode_allreads" >\
-      "$barcode_allreads_renamed"
+    awk 'NR%4 == 1 {print $0}' "$barcode_allreads" |\
+      perl -MDigest::SHA=sha256_hex -nlE'say"$_\t".sha256_hex($_)' >\
+      "$seqid_rename_file"
 
+    awk 'FNR == NR {
+      header[FNR]="@"$NF
+      next
+      }
+      {
+        if (FNR%4 == 1) {
+          print header[(FNR-1)/4+1]
+        }
+        if (FNR%4 != 1) {
+          print $0
+        }
+      }' \
+      "$seqid_rename_file" \
+      "$barcode_allreads" >\
+      "$barcode_allreads_renamed"
 	fi
 
 	#first check if there is enough data
