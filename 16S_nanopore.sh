@@ -90,7 +90,7 @@ checkCommand() {
 }
 
 #check for all required commands before anything
-checkCommand samtools R minimap2 #filtlong
+checkCommand samtools R minimap2 perl cat awk sed #filtlong
 
 #fetch and check options provided by user
 while getopts ":hi:t:vo:" opt; do
