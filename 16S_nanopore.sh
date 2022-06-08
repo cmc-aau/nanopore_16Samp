@@ -13,7 +13,7 @@ set -o pipefail
 #print exactly what gets executed (useful for debugging)
 #set -o xtrace
 
-version="1.3.5"
+version="1.3.6"
 
 # Use all logical cores except 2 unless adjusted by user
 max_threads=${max_threads:-$(($(nproc)-2))}
@@ -22,10 +22,10 @@ max_threads=${max_threads:-$(($(nproc)-2))}
 memlimit=${memlimit:-"$(($(free -g | awk '/^Mem:/{print $7}') - 4))g"}
 
 # Path to fasta file used for mapping
-database_fasta=${database_fasta:-"/space/databases/midas/MiDAS4.8.1_20210702/output/FLASVs.fa"}
+database_fasta=${database_fasta:-"/home/user/Databases/MiDAS4.8.1/FLASVs.fa"}
 
 # Path to QIIME formatted taxonomy file matching the fasta file above
-database_tax=${database_tax:-"/space/databases/midas/MiDAS4.8.1_20210702/output/tax_complete_qiime.txt"}
+database_tax=${database_tax:-"/home/user/Databases/MiDAS4.8.1/tax_complete_qiime.txt"}
 
 # Remove reads with a quality of less than X %. If unset default is 80
 minquality=${minquality:-80}
@@ -96,14 +96,22 @@ checkCommand samtools R minimap2 perl cat awk sed #filtlong
 while getopts ":hi:t:vo:" opt; do
 case ${opt} in
   h )
-    echo "Some help text"
+    echo "Script to process (demultiplexed) nanopore amplicon data for 16S community profiling."
+    echo
     echo "version: $version"
     echo "Options:"
-    echo "  -h    Display this help text and exit."
-    echo "  -v    Print version and exit."
     echo "  -i    (required) Input fastq_pass folder with subfolders for each barcode."
     echo "  -o    (required) Output folder."
     echo "  -t    Max number of max_threads to use. (Default: all available except 2)"
+    echo "  -h    Display this help text and exit."
+    echo "  -v    Print version and exit."
+    echo
+    echo "Additional options can be set by exporting environment variables before running the script:"
+    echo "  - database_fasta: Path to fasta file used for mapping"
+    echo "  - database_tax: Path to QIIME formatted taxonomy file matching the fasta file above"
+    echo "  - memlimit: Memory soft-limit for minimap2 in GB, fx \"10g\""
+    echo "  - minfastqsize: Minimum fastq file size of all combined reads in bytes per barcode, otherwise skip processing the barcode, fx \"100000\""
+    echo "  - minquality (currently not used): Remove reads with a quality of less than X % using filtlong"
     exit 1
     ;;
   i )
@@ -180,10 +188,6 @@ total_reads_file="${output}/totalreads.csv"
 #clear total reads file
 true > "$total_reads_file"
 
-#decompress if files are gzip'ed
-scriptMessage "Decompressing f*q files (in-place) if gzip'ed"
-find "${input}" -iname '*.f*q.gz' -exec gunzip -q {} \;
-
 scriptMessage "Mapping all reads from each barcode to database"
 for barcode in $demuxfolders
 do
@@ -193,7 +197,7 @@ do
   barcodefolder="${output}/${barcodename}"
   mkdir -p "$barcodefolder"
 
-  fastqfiles=$(find "$barcode" -type f -iname '*.f*q')
+  fastqfiles=$(find "$barcode" -type f \( -iname '*.f*q' -o -iname '*.f*q.gz' \))
 
 	#continue with next folder if no fastq files found
 	if [ -z "$fastqfiles" ]
@@ -214,10 +218,11 @@ do
 	  # rm -rf $(find "$barcodefolder" -mindepth 1 | grep -v 'barcode_allreads_renamed.fastq$') #don't quote
   elif [ -n "$fastqfiles" ]
 	then
-    scriptMessage "    (barcode: ${barcodename}): Concatenating all fastq files into a single file..."
-		#dont quote $fastqfiles
+    #decompress if files are gzip'ed
+    scriptMessage "    (barcode: ${barcodename}): Decompressing reads if gzip'ed and concatenating into a single file..."
+    #dont quote $fastqfiles, it must be expanded
     #shellcheck disable=SC2086
-    cat $fastqfiles > "$barcode_allreads"
+    gunzip -cdfq $fastqfiles > "$barcode_allreads"
 
     scriptMessage "    (barcode: ${barcodename}): Replacing sequence headers in fastq file with sha-256 checksums of themselves..."
     seqid_rename_file="${barcodefolder}/seqid_checksums.tsv"
