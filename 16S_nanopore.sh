@@ -21,7 +21,7 @@ then
   TZ="Europe/Copenhagen"
 fi
 
-version="1.4.1"
+version="1.4.2"
 
 # Use all logical cores except 2 unless adjusted by user
 max_threads=${max_threads:-$(($(nproc)-2))}
@@ -467,11 +467,13 @@ main() {
     ]
     summary[, pct_mapped := round(mapped_reads / total_reads * 100, 2)]
 
-    #filter those with too short alignment
+    #filter those with too short alignment and message
     nmappingsbefore <- as.numeric(nrow(mappings))
     minalignlen <- as.integer(args[[5]])
     mappings <- mappings[alnlen >= minalignlen]
     nmappingsafter <- as.numeric(nrow(mappings))
+
+    message("Total reads across all barcodes: ", total_reads[, sum(reads)])
 
     if (nmappingsbefore == nmappingsafter) {
       message(
