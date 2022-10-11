@@ -21,7 +21,7 @@ then
   TZ="Europe/Copenhagen"
 fi
 
-version="1.4.0"
+version="1.4.1"
 
 # Use all logical cores except 2 unless adjusted by user
 max_threads=${max_threads:-$(($(nproc)-2))}
@@ -381,6 +381,15 @@ main() {
     #set max threads for data.table
     setDTthreads(as.integer(args[[1]]))
 
+    #get total reads per sample
+    total_reads <- fread(
+      args[[4]],
+      header = FALSE,
+      sep = ",",
+      col.names = c("barcode", "reads"),
+      colClasses = c("character", "integer")
+    )
+
     #read taxonomy
     tax_db <- fread(
       args[[2]],
@@ -409,7 +418,7 @@ main() {
           "readID",
           "SAMflag",
           "OTU",
-          "Qlen",
+          "querylen",
           "alnlen",
           "MapID",
           "NMtag",
@@ -426,8 +435,14 @@ main() {
       idcol = "barcode"
     )
 
+    # merge total reads per barcode
+    mappings <- mappings[total_reads, on = "barcode"]
+
     # Calc ratio in pct between query sequence length and alignment length
-    mappings <- mappings[, Qr := round(Qlen / alnlen, 3)]
+    mappings[, Qr := round(querylen / alnlen, 3)]
+
+    # calc number of "mappings" per barcode before filtering
+    mappings[, mapped_reads := .N, by = barcode]
 
     # Write out detailed mappings before filtering
     fwrite(
@@ -439,11 +454,20 @@ main() {
       col.names = TRUE
     )
 
-    message(
-      "Median alignment and query lengths per barcode:"
-    )
-    mappings[, .(alignment = median(alnlen), query = median(Qlen)), by = barcode]
+    # create a stats summary per barcode
+    summary <- mappings[
+      ,
+      .(
+        median_alnlen = median(alnlen),
+        median_querylen = median(querylen),
+        mapped_reads = mapped_reads[1],
+        total_reads = reads[1]
+      ),
+      by = barcode
+    ]
+    summary[, pct_mapped := round(mapped_reads / total_reads * 100, 2)]
 
+    #filter those with too short alignment
     nmappingsbefore <- as.numeric(nrow(mappings))
     minalignlen <- as.integer(args[[5]])
     mappings <- mappings[alnlen >= minalignlen]
@@ -468,6 +492,21 @@ main() {
         )
       )
     }
+
+    # calc number of "mappings" per barcode after filtering and print+write out summary
+    mappings[, nfilt := mapped_reads - .N, by = barcode]
+    summary <- summary[unique(mappings[, c("barcode", "nfilt")]), on = "barcode"]
+    summary[, pct_filt := round(nfilt / mapped_reads * 100, 2)]
+    message("Summary per barcode:")
+    print(summary)
+    fwrite(
+      summary,
+      paste0(args[[3]], "/summary.txt"),
+      quote = FALSE,
+      sep = "\t",
+      row.names = FALSE,
+      col.names = TRUE
+    )
 
     #join taxonomy with mapping
     joined <- tax_db[mappings[, c("barcode", "OTU")], on = "OTU"]
@@ -504,15 +543,6 @@ main() {
       quote = FALSE
     )
 
-    #get total reads per sample
-    total_reads <- fread(
-      args[[4]],
-      header = FALSE,
-      sep = ",",
-      col.names = c("barcode", "reads"),
-      colClasses = c("character", "integer")
-    )
-
     #extract abundances to be able to normalise to total reads
     abund <- otutable[, -c("OTU", ..tax_levels)]
 
@@ -535,7 +565,6 @@ main() {
       abund,
       otutable[, ..tax_levels]
     )
-
     fwrite(
       otutable_norm,
       paste0(args[[3]], "/otutable_normalised.tsv"),
