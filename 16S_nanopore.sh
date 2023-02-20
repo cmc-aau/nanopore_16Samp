@@ -21,7 +21,7 @@ then
   TZ="Europe/Copenhagen"
 fi
 
-version="1.4.2"
+version="1.4.3"
 
 # Use all logical cores except 2 unless adjusted by user
 max_threads=${max_threads:-$(($(nproc)-2))}
@@ -187,7 +187,8 @@ then
 fi
 
 demuxfolders=$(
-  find "${input}"/ \
+  find -L \
+    "${input}"/ \
     -maxdepth 1 \
     -mindepth 1 \
     -type d \
@@ -248,7 +249,7 @@ main() {
     barcodefolder="${output}/${barcodename}"
     mkdir -p "$barcodefolder"
 
-    fastqfiles=$(find "$barcode" -type f \( -iname '*.f*q' -o -iname '*.f*q.gz' \))
+    fastqfiles=$(find -L "$barcode" -type f \( -iname '*.f*q' -o -iname '*.f*q.gz' \))
 
     #continue with next folder if no fastq files found
     if [ -z "$fastqfiles" ]
