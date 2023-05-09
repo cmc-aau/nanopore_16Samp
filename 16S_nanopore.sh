@@ -21,7 +21,7 @@ then
   TZ="Europe/Copenhagen"
 fi
 
-version="1.4.3"
+version="1.4.4"
 
 # Use all logical cores except 2 unless adjusted by user
 max_threads=${max_threads:-$(($(nproc)-2))}
@@ -30,10 +30,10 @@ max_threads=${max_threads:-$(($(nproc)-2))}
 memlimit=${memlimit:-"$(($(free -g | awk '/^Mem:/{print $7}') - 4))g"}
 
 # Path to fasta file used for mapping
-database_fasta=${database_fasta:-"/home/user/Databases/MiDAS4.8.1/FLASVs.fa"}
+database_fasta=${database_fasta:-"/databases/midas/MiDAS4.8.1_20210702/output/FLASVs.fa"}
 
 # Path to QIIME formatted taxonomy file matching the fasta file above
-database_tax=${database_tax:-"/home/user/Databases/MiDAS4.8.1/tax_complete_qiime.txt"}
+database_tax=${database_tax:-"/databases/midas/MiDAS4.8.1_20210702/output/tax_complete_qiime.txt"}
 
 # Remove reads with a quality of less than X %. If unset default is 80
 minquality=${minquality:-80}
@@ -412,7 +412,7 @@ main() {
 
     mappings <- lapply(files, function(file) {
       mapping <- fread(
-        paste0(args[[3]], "/", file),
+        file.path(args[[3]], file),
         header = FALSE,
         sep = " ",
         col.names = c(
@@ -448,7 +448,7 @@ main() {
     # Write out detailed mappings before filtering
     fwrite(
       mappings,
-      paste0(args[[3]], "/mappings_detailed.txt"),
+      file.path(args[[3]], "mappings_detailed.txt"),
       quote = FALSE,
       sep = "\t",
       row.names = FALSE,
@@ -504,7 +504,7 @@ main() {
     print(summary)
     fwrite(
       summary,
-      paste0(args[[3]], "/summary.txt"),
+      file.path(args[[3]], "summary.txt"),
       quote = FALSE,
       sep = "\t",
       row.names = FALSE,
@@ -539,7 +539,7 @@ main() {
     #write out non-normalised table
     fwrite(
       otutable,
-      paste0(args[[3]], "/otutable_mappedreads.tsv"),
+      file.path(args[[3]], "otutable_mappedreads.tsv"),
       sep = "\t",
       col.names = TRUE,
       na = "NA",
@@ -570,7 +570,7 @@ main() {
     )
     fwrite(
       otutable_norm,
-      paste0(args[[3]], "/otutable_normalised.tsv"),
+      file.path(args[[3]], "otutable_normalised.tsv"),
       sep = "\t",
       col.names = TRUE,
       na = "NA",
