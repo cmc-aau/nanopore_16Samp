@@ -371,6 +371,15 @@ main() {
     #extract passed args from shell script
     args <- commandArgs(trailingOnly = TRUE)
 
+    # for debugging if it fails
+    # args <- list(
+    #   max_threads = 32,
+    #   database_tax = "databases/MiDAS4.8.1/tax_complete_qiime.txt",
+    #   output = "/user_data/ksa/projects/midas_onlinekontrol/nanopore_runs/2023-may/p1/",
+    #   total_reads_file = "/user_data/ksa/projects/midas_onlinekontrol/nanopore_runs/2023-may/p1/totalreads.csv",
+    #   minalignlen = 200
+    # )
+
     #load required package
     suppressPackageStartupMessages({
       if (!require("data.table")) {
