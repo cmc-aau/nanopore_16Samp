@@ -21,7 +21,7 @@ then
   TZ="Europe/Copenhagen"
 fi
 
-version="1.4.4"
+version="1.4.5"
 
 # Use all logical cores except 2 unless adjusted by user
 max_threads=${max_threads:-$(($(nproc)-2))}
@@ -386,6 +386,10 @@ main() {
         install.packages("data.table")
         require("data.table")
       }
+      if (!require("dplyr")) {
+        install.packages("dplyr")
+        require("dplyr")
+      }
     })
 
     #set max threads for data.table
@@ -521,7 +525,7 @@ main() {
     )
 
     #join taxonomy with mapping
-    joined <- tax_db[mappings[, c("barcode", "OTU")], on = "OTU"]
+    joined <- dplyr::left_join(mappings[, c("barcode", "OTU")], tax_db, by = "OTU")
 
     #transform into a merged "OTU table",
     #includes both abundances and taxonomy (old school ampvis format)

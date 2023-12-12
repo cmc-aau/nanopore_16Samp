@@ -6,16 +6,10 @@ Bash script to map reads against a taxonomic database and produce an abundance t
 
 * minimap2
 * samtools
-* R
+* R (with data.table+dplyr installed)
 * (filtlong)
 
-On AAU just load the following modules before running the script:
-
-```
-module load Minimap2/2.15-foss-2018a
-module load SAMtools/1.10-foss-2018a
-module load R/3.5.0-foss-2018a-X11-20180131
-```
+You can also use the conda `environment.yml` file to create a conda environment.
 
 ## Usage
 
