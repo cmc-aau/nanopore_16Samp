@@ -1,16 +1,19 @@
 rule mapping_overview:
-  input:
-    os.path.join(config['tmp_dir'], "samples", "{sample}", "{sample}.sam")
-  output:
-    os.path.join(config['output_dir'], "samples", "{sample}", "{sample}.idmapped.txt")
-  message: "Creating mapping overview"
-  conda:
-    "../envs/checksum_fq_headers.yml"
-  resources:
-    mem_mb = 600
-  threads: 1
-  shell:
-    """
+    input:
+        os.path.join(config["tmp_dir"], "samples", "{sample}", "{sample}.sam"),
+    output:
+        os.path.join(
+            config["output_dir"], "samples", "{sample}", "{sample}.idmapped.txt"
+        ),
+    message:
+        "Creating mapping overview"
+    conda:
+        "../envs/checksum_fq_headers.yml"
+    resources:
+        mem_mb=600,
+    threads: 1
+    shell:
+        """
       sed '/^@/ d' "{input}" | \
       awk '{{
         for(i=1;i<=NF;i++){{
@@ -26,4 +29,3 @@ rule mapping_overview:
       }}' \
       > "{output}"
     """
-
