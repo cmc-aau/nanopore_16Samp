@@ -2,8 +2,8 @@
 # Everything else regarding how things are run should go in the profile config
 
 # input folder is expected to contain a subfolder for each sampleID/barcode
-# then all fastq files in each subfolder is concatenated and the folder name is 
-# used a sample ID downstream. This is usually the "fastq_pass" folder 
+# then all fastq files in each subfolder are concatenated and the folder name is 
+# used as sample ID downstream. This is usually the "fastq_pass" folder 
 # from nanopore sequencing and basecalling output
 input_dir: "fastq_pass"
 
