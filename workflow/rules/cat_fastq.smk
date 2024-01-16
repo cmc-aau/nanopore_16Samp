@@ -20,6 +20,8 @@ rule concatenate_fastq:
         total_reads_file=os.path.join(
             config["tmp_dir"], "samples", "{sample}", "{sample}_totalreads.csv"
         ),
+    log:
+        os.path.join(config["log_dir"], "concatenate_fastq", "{sample}.log"),
     resources:
         mem_mb=600,
     conda:

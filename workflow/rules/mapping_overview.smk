@@ -5,6 +5,8 @@ rule mapping_overview:
         os.path.join(
             config["output_dir"], "samples", "{sample}", "{sample}.idmapped.txt"
         ),
+    log:
+        os.path.join(config["log_dir"], "mapping_overview", "{sample}.log"),
     message:
         "Creating mapping overview"
     conda:
@@ -28,4 +30,4 @@ rule mapping_overview:
         aln=0;
       }}' \
       > "{output}"
-    """
+      """

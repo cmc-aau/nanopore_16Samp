@@ -9,6 +9,7 @@ input_dir: "config/nanopore_run_xyz123/fastq_pass"
 
 output_dir: "results"
 tmp_dir: "tmp"
+log_dir: "logs"
 
 # database for minimap2 in fasta file format
 db_fasta: "config/db_fasta.fa"

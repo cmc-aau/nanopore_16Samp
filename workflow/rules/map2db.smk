@@ -5,6 +5,8 @@ rule map2db:
         os.path.join(config["tmp_dir"], "samples", "{sample}", "{sample}_renamed.fastq"),
     output:
         temp(os.path.join(config["tmp_dir"], "samples", "{sample}", "{sample}.sam")),
+    log:
+        os.path.join(config["log_dir"], "map2db", "{sample}.log"),
     resources:
         #depending on the tool memory usage usually scales with threads 
         #and/or input/database file size. Can calculate dynamically

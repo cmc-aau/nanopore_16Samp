@@ -18,6 +18,8 @@ rule abund_table:
         os.path.join(config["output_dir"], "otutable_mappedreads.tsv"),
         os.path.join(config["output_dir"], "otutable_normalised.tsv"),
         os.path.join(config["output_dir"], "totalreads.csv"),
+    log:
+        os.path.join(config["log_dir"], "abund_table.log"),
     resources:
         mem_mb=10240,
     message:

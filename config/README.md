@@ -2,9 +2,11 @@
 
  - `input_dir`: The input folder is expected to contain a subfolder for each sampleID/barcode, then all fastq files in each subfolder are concatenated and the folder name is used as sample ID downstream. This is usually the "fastq_pass" folder from nanopore sequencing and basecalling output 
 
- - `output_dir`: Output folder with end results
+ - `output_dir`: Output directory with the final results
 
- - `tmp_dir`: Temporary files
+ - `tmp_dir`: Directory for temporary files
+
+ - `log_dir`: Directory for log files for all rules
 
  - `db_fasta`: Database for minimap2 in fasta file format. Each sequence header must only contain an ID matching the taxonomy file below
 

@@ -10,6 +10,8 @@ rule checksum_fq_headers:
         seqid_checksums=os.path.join(
             config["output_dir"], "samples", "{sample}", "seqid_checksums.tsv"
         ),
+    log:
+        os.path.join(config["log_dir"], "checksum_fq_headers", "{sample}.log"),
     conda:
         "../envs/checksum_fq_headers.yml"
     message:
