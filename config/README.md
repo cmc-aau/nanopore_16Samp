@@ -15,3 +15,5 @@
  - `minalignlen`: Minimum alignment length for the mapping. Any alignments shorter than this threshold are filtered
  
  - `max_threads`: Max number of threads for any rule
+
+Have a look in the `.test` directory for example files.
