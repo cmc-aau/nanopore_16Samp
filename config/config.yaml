@@ -11,10 +11,10 @@ output_dir: "results"
 tmp_dir: "tmp"
 
 # database for minimap2 in fasta file format
-db_fasta: "db_fasta.fa"
+db_fasta: "config/db_fasta.fa"
 
 # taxonomy for each sequence in the above fasta file in QIIME format 
-db_tax: "db_tax.tsv"
+db_tax: "config/db_tax.tsv"
 
 # Minimum alignment length
 minalignlen: 200
