@@ -16,7 +16,7 @@ rule mapping_overview:
     threads: 1
     shell:
         """
-      sed '/^@/ d' "{input}" | \
+      sed ' /^@/ d' "{input}" | \
       awk '{{
         for(i=1;i<=NF;i++){{
           if($i ~ /^NM:i:/){{sub("NM:i:", "", $i); mm = $i}}

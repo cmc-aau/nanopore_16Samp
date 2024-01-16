@@ -9,3 +9,7 @@ test_run/
 
 *.fastq
 *.fast5
+.snakemake/
+logs/
+results/
+tmp/
