@@ -21,10 +21,10 @@ rule abund_table:
     log:
         os.path.join(config["log_dir"], "abund_table.log"),
     resources:
-        mem_mb=10240,
+        mem_mb=20480,
     message:
         "Generating abundance table and writing final output files"
-    threads: min(config["max_threads"], 8)
+    threads: min(config["max_threads"], 4)
     conda:
         "../envs/abund_table.yml"
     script:
