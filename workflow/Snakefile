@@ -28,20 +28,6 @@ include: "rules/abund_table.smk"
 
 rule all:
     input:
-        os.path.join(config["output_dir"], "mappings_detailed.txt"),
         os.path.join(config["output_dir"], "summary.txt"),
         os.path.join(config["output_dir"], "otutable_mappedreads.tsv"),
         os.path.join(config["output_dir"], "otutable_normalised.tsv"),
-        os.path.join(config["output_dir"], "totalreads.csv"),
-        expand(
-            os.path.join(
-                config["output_dir"], "samples", "{sample}", "seqid_checksums.tsv"
-            ),
-            sample=sample_dirs,
-        ),
-        expand(
-            os.path.join(
-                config["output_dir"], "samples", "{sample}", "{sample}.idmapped.txt"
-            ),
-            sample=sample_dirs,
-        ),

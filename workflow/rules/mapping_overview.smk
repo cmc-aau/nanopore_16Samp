@@ -2,8 +2,10 @@ rule mapping_overview:
     input:
         os.path.join(config["tmp_dir"], "samples", "{sample}", "{sample}.sam"),
     output:
-        os.path.join(
-            config["output_dir"], "samples", "{sample}", "{sample}.idmapped.txt"
+        temp(
+            os.path.join(
+                config["tmp_dir"], "samples", "{sample}", "{sample}.idmapped.txt"
+            )
         ),
     log:
         os.path.join(config["log_dir"], "mapping_overview", "{sample}.log"),

@@ -8,16 +8,14 @@ rule abund_table:
         ),
         mapping_overviews=expand(
             os.path.join(
-                config["output_dir"], "samples", "{sample}", "{sample}.idmapped.txt"
+                config["tmp_dir"], "samples", "{sample}", "{sample}.idmapped.txt"
             ),
             sample=sample_dirs,
         ),
     output:
-        os.path.join(config["output_dir"], "mappings_detailed.txt"),
         os.path.join(config["output_dir"], "summary.txt"),
         os.path.join(config["output_dir"], "otutable_mappedreads.tsv"),
         os.path.join(config["output_dir"], "otutable_normalised.tsv"),
-        os.path.join(config["output_dir"], "totalreads.csv"),
     log:
         os.path.join(config["log_dir"], "abund_table.log"),
     resources:

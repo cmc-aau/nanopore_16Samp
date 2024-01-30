@@ -13,8 +13,10 @@ rule concatenate_fastq:
         fastq=temp(
             os.path.join(config["tmp_dir"], "samples", "{sample}", "{sample}.fastq")
         ),
-        total_reads_file=os.path.join(
-            config["tmp_dir"], "samples", "{sample}", "{sample}_totalreads.csv"
+        total_reads_file=temp(
+            os.path.join(
+                config["tmp_dir"], "samples", "{sample}", "{sample}_totalreads.csv"
+            )
         ),
     log:
         os.path.join(config["log_dir"], "concatenate_fastq", "{sample}.log"),

@@ -33,7 +33,6 @@ main <- function(
       colClasses = c("character", "integer")
     )
   )
-  fwrite(total_reads, file.path(output, "totalreads.csv"))
 
   #read taxonomy
   tax_db <- fread(
@@ -82,16 +81,6 @@ main <- function(
 
   # calc number of "mappings" per barcode before filtering
   mappings[, mapped_reads := .N, by = barcode]
-
-  # Write out detailed mappings before filtering
-  fwrite(
-    mappings,
-    file.path(output, "mappings_detailed.txt"),
-    quote = FALSE,
-    sep = "\t",
-    row.names = FALSE,
-    col.names = TRUE
-  )
 
   # create a stats summary per barcode
   summary <- mappings[

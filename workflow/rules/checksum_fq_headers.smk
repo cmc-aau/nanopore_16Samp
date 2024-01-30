@@ -7,8 +7,10 @@ rule checksum_fq_headers:
                 config["tmp_dir"], "samples", "{sample}", "{sample}_renamed.fastq"
             )
         ),
-        seqid_checksums=os.path.join(
-            config["output_dir"], "samples", "{sample}", "seqid_checksums.tsv"
+        seqid_checksums=temp(
+            os.path.join(
+                config["tmp_dir"], "samples", "{sample}", "seqid_checksums.tsv"
+            )
         ),
     log:
         os.path.join(config["log_dir"], "checksum_fq_headers", "{sample}.log"),
