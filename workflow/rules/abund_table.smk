@@ -21,7 +21,7 @@ rule abund_table:
     log:
         os.path.join(config["log_dir"], "abund_table.log"),
     resources:
-        mem_mb=20480,
+        mem_mb=32768,
     message:
         "Generating abundance table and writing final output files"
     threads: min(config["max_threads"], 4)
