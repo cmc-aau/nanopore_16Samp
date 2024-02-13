@@ -22,6 +22,7 @@ rule concatenate_fastq:
         os.path.join(config["log_dir"], "concatenate_fastq", "{sample}.log"),
     resources:
         mem_mb=512,
+        runtime=10
     conda:
         "../envs/gzip.yml"
     threads: 1

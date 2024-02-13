@@ -20,6 +20,7 @@ rule abund_table:
         os.path.join(config["log_dir"], "abund_table.log"),
     resources:
         mem_mb=32768,
+        runtime=60
     message:
         "Generating abundance table and writing final output files"
     threads: min(config["max_threads"], 4)

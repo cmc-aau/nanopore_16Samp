@@ -11,6 +11,7 @@ rule map2db:
         #depending on the tool memory usage usually scales with threads 
         #and/or input/database file size. Can calculate dynamically
         mem_mb=4096,
+        runtime=60
     threads: config["max_threads"]
     message:
         "Mapping against database and filtering output"
