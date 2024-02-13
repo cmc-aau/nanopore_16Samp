@@ -1,27 +1,12 @@
 # This file is for various variables used throughout the workflow.
-# Everything else regarding how things are run should go in the profile config, not here
+# Everything else regarding how things are run should go in the profile config, not here.
+# See description of each setting in the README.md file.
 
-# input folder is expected to contain a subfolder for each sampleID/barcode
-# then all fastq files in each subfolder are concatenated and the folder name is 
-# used as sample ID downstream. This is usually the "fastq_pass" folder 
-# from nanopore sequencing and basecalling output
 input_dir: "nanopore_run_xyz123/fastq_pass"
-
 output_dir: "results"
 tmp_dir: "tmp"
 log_dir: "logs"
-
-# database for minimap2 in fasta file format (download this particular one from https://midasfieldguide.org)
 db_fasta: "/databases/midas/MiDAS5.2_20231221/output/FLASVs.fa"
-
-# taxonomy for each sequence in the above fasta file in QIIME format (download this particular one from https://midasfieldguide.org)
 db_tax: "/databases/midas/MiDAS5.2_20231221/output/tax_complete_qiime.txt"
-
-# Minimum alignment length
 minalignlen: 200
-
-# Number of threads to use for individual roles.
-# Not ideal, but threads can be set in multiple places, so the best is to set 
-# this to a large number and instead adjust the max-threads (per rule) 
-# in the profile config.yaml to suit your particular computing setup.
-max_threads: 128
+max_threads: 32

@@ -8,5 +8,15 @@ Workflow to map any amplicon reads against a taxonomic database and produce an a
 ## Usage
 The usage of this workflow is described in the [Snakemake Workflow Catalog](https://snakemake.github.io/snakemake-workflow-catalog?usage=cmc-aau/nanopore_16Samp).
 
+First install `snakemake` and `snakedeploy`, then deploy the workflow in your project using fx
+
+```
+snakedeploy deploy-workflow https://github.com/cmc-aau/nanopore_16Samp . --tag v123
+```
+
+Replace `v123` with one of the versions listed under releases.
+
+Then adjust the configuration file `config.yml` and run the workflow with `snakemake` according to your setup.
+
 ## References
 https://doi.org/10.1016/j.watres.2023.119919
