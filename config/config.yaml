@@ -3,10 +3,10 @@
 # See description of each setting in the README.md file.
 
 input_dir: "nanopore_run_xyz123/fastq_pass"
-output_dir: "results"
+output_dir: "output"
 tmp_dir: "tmp"
 log_dir: "logs"
 db_fasta: "/databases/midas/MiDAS5.2_20231221/output/FLASVs.fa"
 db_tax: "/databases/midas/MiDAS5.2_20231221/output/tax_complete_qiime.txt"
-minalignlen: 200
-max_threads: 32
+minalignlen: 400
+max_threads: 16

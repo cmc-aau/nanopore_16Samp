@@ -23,6 +23,7 @@ main <- function(
   #set max threads for data.table
   setDTthreads(as.integer(max_threads))
 
+  #aggregate totalreads.csv files
   total_reads <- rbindlist(
     lapply(
       totalreads_files,
