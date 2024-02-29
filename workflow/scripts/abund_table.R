@@ -75,7 +75,7 @@ main <- function(
   )
 
   # merge total reads per barcode
-  mappings <- mappings[total_reads, on = "barcode"]
+  mappings <- total_reads[mappings, on = "barcode"]
 
   # Calc ratio in pct between query sequence length and alignment length
   mappings[, Qr := round(querylen / alnlen, 3)]
@@ -178,6 +178,7 @@ main <- function(
   abund <- otutable[, -c("OTU", ..tax_levels)]
 
   #make sure the order of barcodes is identical between otutable+reads
+  total_reads <- total_reads[barcode %chin% colnames(abund)]
   total_reads[, barcode := factor(barcode, colnames(abund))]
   total_reads <- total_reads[order(barcode)]
 
