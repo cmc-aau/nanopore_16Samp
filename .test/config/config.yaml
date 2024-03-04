@@ -1,27 +1,11 @@
-# This file is for various variables used throughout the workflow.
-# Everything else regarding how things are run should go in the profile config
-
-# input folder is expected to contain a subfolder for each sampleID/barcode
-# then all fastq files in each subfolder are concatenated and the folder name is 
-# used as sample ID downstream. This is usually the "fastq_pass" folder 
-# from nanopore sequencing and basecalling output
 input_dir: "nanopore_run_xyz123/fastq_pass"
-
-output_dir: "results"
+output_dir: "output"
 tmp_dir: "tmp"
 log_dir: "logs"
-
-# database for minimap2 in fasta file format
 db_fasta: "db_fasta.fa"
-
-# taxonomy for each sequence in the above fasta file in QIIME format 
 db_tax: "db_tax.tsv"
-
-# Minimum alignment length
 minalignlen: 200
+minIDfrac: 0.95
+filtlong_args: "--min_length 400 --min_mean_q 90"
+max_threads: 16
 
-# Number of threads to use for individual roles.
-# Not ideal, but threads can be set in multiple places, so the best is to set 
-# this to a large number and instead adjust the max-threads (per rule) 
-# in the profile config.yaml to suit your particular computing setup.
-max_threads: 128
