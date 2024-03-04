@@ -18,7 +18,8 @@ main <- function(
   totalreads_files,
   database_tax,
   output,
-  minalignlen
+  minalignlen,
+  minIDfrac
 ) {
   #set max threads for data.table
   setDTthreads(as.integer(max_threads))
@@ -59,7 +60,7 @@ main <- function(
         "OTU",
         "querylen",
         "alnlen",
-        "MapID",
+        "MapIDfrac",
         "NMtag",
         "alnscore",
         "MinimapID"
@@ -77,8 +78,8 @@ main <- function(
   # merge total reads per barcode
   mappings <- total_reads[mappings, on = "barcode"]
 
-  # Calc ratio in pct between query sequence length and alignment length
-  mappings[, Qr := round(querylen / alnlen, 3)]
+  # Calc ratio in pct between alignment length and query sequence length
+  mappings[, alnfrac := round(alnlen / querylen, 3)]
 
   # calc number of "mappings" per barcode before filtering
   mappings[, mapped_reads := .N, by = barcode]
@@ -89,6 +90,7 @@ main <- function(
     .(
       median_alnlen = median(alnlen),
       median_querylen = median(querylen),
+      median_IDfrac = median(MapIDfrac),
       mapped_reads = mapped_reads[1],
       total_reads = reads[1]
     ),
@@ -96,27 +98,31 @@ main <- function(
   ]
   summary[, pct_mapped := round(mapped_reads / total_reads * 100, 2)]
 
-  #filter those with too short alignment and message
+  # filter those with too short alignment or too low ID
   nmappingsbefore <- as.numeric(nrow(mappings))
   minalignlen <- as.integer(minalignlen)
   mappings <- mappings[alnlen >= minalignlen]
+  if(!(minIDfrac <= 1 && minIDfrac >= 0))
+    stop("Minimum mapping identity must be given as a fraction between 0.0 and 1.0")
+  mappings <- mappings[MapIDfrac >= minIDfrac]
   nmappingsafter <- as.numeric(nrow(mappings))
+  nfiltered <- nmappingsbefore - nmappingsafter
 
+  # message
   message("Total reads across all barcodes: ", total_reads[, sum(reads)])
-
-  if (nmappingsbefore == nmappingsafter) {
-    message(
-      "0 mappings have been filtered (min. alignment length: ",
-      minalignlen,
-      ")."
-    )
+  if (nfiltered == 0) {
+    warning("0 mappings have been filtered. This is highly suspicious unless there are very few reads. Manual inspection may be a good idea.")
   } else {
     message(
       paste0(
-        nmappingsbefore - nmappingsafter,
-        " mappings (across all barcodes) with too short alignment (min. alignment length: ",
+        nfiltered,
+        " mappings (",
+        round(nfiltered / total_reads[, sum(reads)] * 100, digits = 2L),
+        "% of total) with too short alignment (<",
         minalignlen,
-        ") have been filtered \nBefore: ",
+        "bp), and/or too many mismatches (<",
+        minIDfrac * 100L,
+        "% identity) have been filtered \nBefore: ",
         nmappingsbefore,
         "\nAfter: ",
         nmappingsafter
@@ -128,7 +134,7 @@ main <- function(
   mappings[, nfilt := mapped_reads - .N, by = barcode]
   summary <- summary[unique(mappings[, c("barcode", "nfilt")]), on = "barcode"]
   summary[, pct_filt := round(nfilt / mapped_reads * 100, 2)]
-  message("Summary per barcode:")
+  message("Summary per barcode (before filtering):")
   print(summary)
   fwrite(
     summary,
@@ -213,5 +219,16 @@ main(
   totalreads_files = snakemake@input[["totalreads_files"]],
   database_tax = snakemake@config[["db_tax"]],
   output = snakemake@config[["output_dir"]],
-  minalignlen = snakemake@config[["minalignlen"]]
+  minalignlen = snakemake@config[["minalignlen"]],
+  minIDfrac = snakemake@config[["minIDfrac"]]
 )
+
+# for debugging:
+# run_dir <- "./"
+# max_threads <- 4
+# mapping_overviews <- list.files(file.path(run_dir, "tmp/samples/"), pattern = "idmapped.txt", recursive = TRUE, full.names = TRUE)
+# totalreads_files <- list.files(file.path(run_dir, "tmp/samples/"), pattern = "_totalreads.csv", recursive = TRUE, full.names = TRUE)
+# database_tax <- "/databases/midas/MiDAS5.2_20231221/output/tax_complete_qiime.txt"
+# output <- file.path(run_dir, "output")
+# minalignlen <- 800
+# minIDfrac <- 0.99

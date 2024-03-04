@@ -7,9 +7,7 @@ from snakemake.utils import min_version
 
 min_version("7.18.2")
 
-
 configfile: "config/config.yaml"
-
 
 # list all subfolders in input_dir
 sample_dirs = [
@@ -18,16 +16,16 @@ sample_dirs = [
     if sample.lower() != "unclassified"
 ]
 
-
-include: "rules/cat_fastq.smk"
-include: "rules/checksum_fq_headers.smk"  #sometimes sequence names can be way too long for samtools
-include: "rules/map2db.smk"
-include: "rules/mapping_overview.smk"
-include: "rules/abund_table.smk"
-
+include: "rules/01-cat_fastq.smk"
+include: "rules/02-qfilter.smk"
+#sometimes sequence names can be way too long for samtools
+include: "rules/03-checksum_fq_headers.smk"
+include: "rules/04-map2db.smk"
+include: "rules/05-mapping_overview.smk"
+include: "rules/06-abund_table.smk"
 
 rule all:
     input:
         os.path.join(config["output_dir"], "summary.txt"),
         os.path.join(config["output_dir"], "otutable_mappedreads.tsv"),
-        os.path.join(config["output_dir"], "otutable_normalised.tsv"),
+        os.path.join(config["output_dir"], "otutable_normalised.tsv")

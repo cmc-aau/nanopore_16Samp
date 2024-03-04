@@ -2,7 +2,7 @@
 # but piping directly to samtools view from minimap2 is most efficient
 rule map2db:
     input:
-        os.path.join(config["tmp_dir"], "samples", "{sample}", "{sample}_renamed.fastq"),
+        os.path.join(config["tmp_dir"], "samples", "{sample}", "{sample}_filtered_renamed.fastq"),
     output:
         temp(os.path.join(config["tmp_dir"], "samples", "{sample}", "{sample}.sam")),
     log:
@@ -10,7 +10,7 @@ rule map2db:
     resources:
         #depending on the tool memory usage usually scales with threads 
         #and/or input/database file size. Can calculate dynamically
-        mem_mb=4096,
+        mem_mb=8192,
         runtime=60
     threads: config["max_threads"]
     message:

@@ -12,9 +12,11 @@
 
  - `db_tax`: 2-column TSV file with corresponding taxonomy for each sequence in the above fasta file. The first column is for the sequence IDs, the second a semi-colon separated taxonomy string.
 
- - `minalignlen`: Minimum alignment length for the mapping. Any alignments shorter than this threshold are filtered
+ - `minalignlen`: Minimum alignment length for the mapping. Any alignments shorter than this threshold will be filtered
 
- - `minid`: Minimum identity threshold in percent of each mapping. Any alignments with an identity lower than this threshold will be filtered.
+ - `minIDfrac`: Minimum identity threshold of each mapping (value must be between `0.0-1.0`). Any alignments with an identity lower than this threshold will be filtered.
+
+ - `filtlong_args`: Arguments passed on to the `filtlong` command for pre-filtering reads
  
  - `max_threads`: Max number of threads for any rule
 

@@ -1,10 +1,10 @@
 rule checksum_fq_headers:
     input:
-        os.path.join(config["tmp_dir"], "samples", "{sample}", "{sample}.fastq"),
+        os.path.join(config["tmp_dir"], "samples", "{sample}", "{sample}_filtered.fastq"),
     output:
         renamed_fastq=temp(
             os.path.join(
-                config["tmp_dir"], "samples", "{sample}", "{sample}_renamed.fastq"
+                config["tmp_dir"], "samples", "{sample}", "{sample}_filtered_renamed.fastq"
             )
         ),
         seqid_checksums=temp(
