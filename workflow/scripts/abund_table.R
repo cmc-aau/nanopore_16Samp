@@ -16,6 +16,7 @@ main <- function(
   max_threads,
   mapping_overviews,
   totalreads_files,
+  totalfilteredreads_files,
   database_tax,
   output,
   minalignlen,
@@ -31,7 +32,19 @@ main <- function(
       fread,
       header = FALSE,
       sep = ",",
-      col.names = c("barcode", "reads"),
+      col.names = c("barcode", "total_reads"),
+      colClasses = c("character", "integer")
+    )
+  )
+
+  #aggregate totalreads_filtered.csv files
+  total_filtered_reads <- rbindlist(
+    lapply(
+      totalfilteredreads_files,
+      fread,
+      header = FALSE,
+      sep = ",",
+      col.names = c("barcode", "total_filtered_reads"),
       colClasses = c("character", "integer")
     )
   )
@@ -77,6 +90,7 @@ main <- function(
 
   # merge total reads per barcode
   mappings <- total_reads[mappings, on = "barcode"]
+  mappings <- total_filtered_reads[mappings, on = "barcode"]
 
   # Calc ratio in pct between alignment length and query sequence length
   mappings[, alnfrac := round(alnlen / querylen, 3)]
@@ -92,11 +106,12 @@ main <- function(
       median_querylen = median(querylen),
       median_IDfrac = median(MapIDfrac),
       mapped_reads = mapped_reads[1],
-      total_reads = reads[1]
+      total_reads = total_reads[1],
+      total_filtered_reads = total_filtered_reads[1]
     ),
     by = barcode
   ]
-  summary[, pct_mapped := round(mapped_reads / total_reads * 100, 2)]
+  summary[, pct_mapped := round(mapped_reads / total_filtered_reads * 100, 2)]
 
   # filter those with too short alignment or too low ID
   nmappingsbefore <- as.numeric(nrow(mappings))
@@ -109,15 +124,16 @@ main <- function(
   nfiltered <- nmappingsbefore - nmappingsafter
 
   # message
-  message("Total reads across all barcodes: ", total_reads[, sum(reads)])
+  message("Total (raw) reads across all barcodes: ", total_reads[, sum(total_reads)])
+  message("Total (filtered) reads across all barcodes: ", total_filtered_reads[, sum(total_filtered_reads)])
   if (nfiltered == 0) {
-    warning("0 mappings have been filtered. This is highly suspicious unless there are very few reads. Manual inspection may be a good idea.")
+    warning("0 mappings have been filtered by alignment length. This is highly suspicious unless there are very few reads. Manual inspection may be a good idea.")
   } else {
     message(
       paste0(
         nfiltered,
         " mappings (",
-        round(nfiltered / total_reads[, sum(reads)] * 100, digits = 2L),
+        round(nfiltered / total_filtered_reads[, sum(total_filtered_reads)] * 100, digits = 2L),
         "% of total) with too short alignment (<",
         minalignlen,
         "bp), and/or too many mismatches (<",
@@ -134,8 +150,6 @@ main <- function(
   mappings[, nfilt := mapped_reads - .N, by = barcode]
   summary <- summary[unique(mappings[, c("barcode", "nfilt")]), on = "barcode"]
   summary[, pct_filt := round(nfilt / mapped_reads * 100, 2)]
-  message("Summary per barcode (before filtering):")
-  print(summary)
   fwrite(
     summary,
     file.path(output, "summary.txt"),
@@ -184,15 +198,15 @@ main <- function(
   abund <- otutable[, -c("OTU", ..tax_levels)]
 
   #make sure the order of barcodes is identical between otutable+reads
-  total_reads <- total_reads[barcode %chin% colnames(abund)]
-  total_reads[, barcode := factor(barcode, colnames(abund))]
-  total_reads <- total_reads[order(barcode)]
+  total_filtered_reads <- total_filtered_reads[barcode %chin% colnames(abund)]
+  total_filtered_reads[, barcode := factor(barcode, colnames(abund))]
+  total_filtered_reads <- total_filtered_reads[order(barcode)]
 
   #normalise to total reads per barcode, in pct, rounded
   abund[] <- sweep(
     abund,
     2,
-    total_reads[, reads],
+    total_filtered_reads[, total_filtered_reads],
     "/"
   ) * 100
   abund[] <- round(abund, digits = 4)
@@ -217,6 +231,7 @@ main(
   max_threads = snakemake@threads,
   mapping_overviews = snakemake@input[["mapping_overviews"]],
   totalreads_files = snakemake@input[["totalreads_files"]],
+  totalfilteredreads_files = snakemake@input[["totalfilteredreads_files"]],
   database_tax = snakemake@config[["db_tax"]],
   output = snakemake@config[["output_dir"]],
   minalignlen = snakemake@config[["minalignlen"]],
@@ -228,7 +243,7 @@ main(
 # max_threads <- 4
 # mapping_overviews <- list.files(file.path(run_dir, "tmp/samples/"), pattern = "idmapped.txt", recursive = TRUE, full.names = TRUE)
 # totalreads_files <- list.files(file.path(run_dir, "tmp/samples/"), pattern = "_totalreads.csv", recursive = TRUE, full.names = TRUE)
-# database_tax <- "/databases/midas/MiDAS5.2_20231221/output/tax_complete_qiime.txt"
+# database_tax <- "/databases/midas/MiDAS5.3_20240320/tax_complete_qiime.txt"
 # output <- file.path(run_dir, "output")
 # minalignlen <- 800
 # minIDfrac <- 0.99

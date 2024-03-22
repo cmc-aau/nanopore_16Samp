@@ -6,9 +6,9 @@ input_dir: "nanopore_run_xyz123/fastq_pass"
 output_dir: "output"
 tmp_dir: "tmp"
 log_dir: "logs"
-db_fasta: "/databases/midas/MiDAS5.2_20231221/output/FLASVs.fa"
-db_tax: "/databases/midas/MiDAS5.2_20231221/output/tax_complete_qiime.txt"
-minalignlen: 400
+db_fasta: "/databases/midas/MiDAS5.3_20240320/FLASVs.fa"
+db_tax: "/databases/midas/MiDAS5.3_20240320/tax_complete_qiime.txt"
+minalignlen: 290
 minIDfrac: 0.95
-filtlong_args: "--min_length 400 --min_mean_q 90"
+filtlong_args: "--min_length 290 --min_mean_q 90"
 max_threads: 16

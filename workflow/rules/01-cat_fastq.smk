@@ -30,9 +30,10 @@ rule concatenate_fastq:
         "Decompressing reads if gzip'ed and concatenating into a single file, then calculate total number of reads"
     shell:
         """
-      # decompress only if compressed, but concatenate regardless
-      gunzip -cdfq {input} > {output.fastq}
-      # calc total number of reads
-      num_reads=$(($(wc -l < "{output.fastq}") / 4))
-      echo "{wildcards.sample},$num_reads" > "{output.total_reads_file}"
-    """
+        # decompress only if compressed, but concatenate regardless
+        gunzip -cdfq {input} > {output.fastq}
+        
+        # calc total number of reads
+        num_reads=$(($(wc -l < "{output.fastq}") / 4))
+        echo "{wildcards.sample},$num_reads" > "{output.total_reads_file}"
+        """

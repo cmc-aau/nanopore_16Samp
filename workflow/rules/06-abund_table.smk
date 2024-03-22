@@ -6,6 +6,12 @@ rule abund_table:
             ),
             sample=sample_dirs,
         ),
+        totalfilteredreads_files=expand(
+            os.path.join(
+                config["tmp_dir"], "samples", "{sample}", "{sample}_totalfilteredreads.csv"
+            ),
+            sample=sample_dirs,
+        ),
         mapping_overviews=expand(
             os.path.join(
                 config["tmp_dir"], "samples", "{sample}", "{sample}.idmapped.txt"
