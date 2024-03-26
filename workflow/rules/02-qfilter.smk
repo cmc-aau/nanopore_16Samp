@@ -20,7 +20,7 @@ rule qfilter:
         "../envs/qfilter.yml"
     resources:
         mem_mb=lambda wc, input: max(3 * input.size_mb, 512),
-        runtime=10
+        runtime=30
     params:
         filtlong_args=config["filtlong_args"],
     threads: 1

@@ -15,7 +15,7 @@ rule mapping_overview:
         "../envs/checksum_fq_headers.yml"
     resources:
         mem_mb=600,
-        runtime=10
+        runtime=30
     threads: 1
     shell:
         """
