@@ -1,0 +1,7 @@
+#ignore everything
+**
+
+#except
+!environment.yml
+!config
+!workflow

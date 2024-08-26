@@ -1,0 +1,17 @@
+name: nanopore_16samp
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+ - snakemake=7.18.2
+ - snakedeploy
+ - graphviz=9.0.0 # to visualize the DAG
+ - r-base=4.3.2
+ - r-renv=1.0.3
+ - r-dplyr=1.1.4
+ - r-data.table=1.14.10
+ - perl=5.32.1
+ - gzip=1.13
+ - minimap2=2.26
+ - samtools=1.18
+ - filtlong=0.2.1
