@@ -10,7 +10,7 @@ rule map2db:
     resources:
         #depending on the tool memory usage usually scales with threads 
         #and/or input/database file size. Can calculate dynamically
-        mem_mb=8192,
+        mem_mb=24000,
         runtime=60
     threads: config["max_threads"]
     message:

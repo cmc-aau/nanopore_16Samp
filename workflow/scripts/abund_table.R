@@ -88,6 +88,9 @@ main <- function(
     idcol = "barcode"
   )
 
+  if(nrow(mappings) == 0L)
+    stop("No mappings found. Check logs for the previous task", call. = FALSE)
+
   # merge total reads per barcode
   mappings <- total_reads[mappings, on = "barcode"]
   mappings <- total_filtered_reads[mappings, on = "barcode"]

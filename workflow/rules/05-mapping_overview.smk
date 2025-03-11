@@ -14,7 +14,7 @@ rule mapping_overview:
     conda:
         "../envs/checksum_fq_headers.yml"
     resources:
-        mem_mb=600,
+        mem_mb=1024,
         runtime=30
     threads: 1
     shell:

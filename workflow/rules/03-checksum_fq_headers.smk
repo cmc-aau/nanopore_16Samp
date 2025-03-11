@@ -20,7 +20,7 @@ rule checksum_fq_headers:
         "Replacing sequence headers in fastq file with sha-256 checksums of themselves"
     resources:
         threads=1,
-        mem_mb=lambda wc, input: max(1 * input.size_mb, 512),
+        mem_mb=lambda wc, input: max(3 * input.size_mb, 512),
         runtime=30
     threads: 1
     shell:

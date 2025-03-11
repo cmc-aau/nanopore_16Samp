@@ -19,7 +19,7 @@ rule qfilter:
     conda:
         "../envs/qfilter.yml"
     resources:
-        mem_mb=lambda wc, input: max(3 * input.size_mb, 512),
+        mem_mb=lambda wc, input: max(2 * input.size_mb, 512),
         runtime=30
     params:
         filtlong_args=config["filtlong_args"],

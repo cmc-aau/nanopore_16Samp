@@ -7,7 +7,7 @@ rule concatenate_fastq:
         # function to list all fastq files per wildcard (subfolder/sample)
         # see https://snakemake.readthedocs.io/en/latest/snakefiles/rules.html#input-functions
         lambda wildcards: glob.glob(
-            os.path.join(config["input_dir"], wildcards.sample, "*.fastq.gz")
+            os.path.join(config["input_dir"], wildcards.sample, "*.fastq*")
         ),
     output:
         fastq=temp(
