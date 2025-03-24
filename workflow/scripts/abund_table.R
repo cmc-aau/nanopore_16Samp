@@ -96,7 +96,7 @@ main <- function(
   mappings <- total_filtered_reads[mappings, on = "barcode"]
 
   # Calc ratio in pct between alignment length and query sequence length
-  mappings[, alnfrac := round(alnlen / querylen, 3)]
+  mappings[, alnfrac := round(alnlen / querylen, 3)] #not used?
 
   # calc number of "mappings" per barcode before filtering
   mappings[, mapped_reads := .N, by = barcode]
