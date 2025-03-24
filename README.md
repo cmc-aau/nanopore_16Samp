@@ -18,7 +18,7 @@ snakedeploy deploy-workflow https://github.com/cmc-aau/nanopore_16Samp . --tag v
 
 Replace `v123` with one of the versions listed under releases.
 
-Then adjust the configuration file `config.yml` (described in `config/README.md`) and run the workflow with `snakemake` according to your setup.
+Then adjust the configuration file `config.yml` (described in [`config/README.md`](`config/README.md`)) and run the workflow with `snakemake` according to your setup.
 
 ## Workflow rules/steps
 Steps 1-5 are performed for each barcode individually and run in parallel (for each subfolder in the input folder)
