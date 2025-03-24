@@ -27,7 +27,7 @@ Steps 1-5 are performed for each barcode individually and run in parallel (for e
 3. `checksum_fq_headers`: Replace sequence headers in the fastq files with sha-256 checksums of themselves (sometimes sequence headers are too long for some tools).
 4. `map2db`: Map reads to database using `minimap2`, pipe through `samtools`, and output a SAM file.
 5. `mapping_overview`: Count number of reads that mapped to a database sequence and calculate some stats to use for post-filtering.
-6. `abund_table`: Boil it all down to a single abundance table per sample/barcode including taxonomy of the database reference.
+6. `abund_table`: Filter mappings based on stats, and then boil it all down to a single abundance table per sample/barcode including taxonomy of the database reference.
 
 ## Output
 3 files are output in the `config['output_dir']` directory:
