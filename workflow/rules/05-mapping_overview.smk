@@ -19,18 +19,21 @@ rule mapping_overview:
     threads: 1
     shell:
         """
-      sed ' /^@/ d' "{input}" | \
-      awk '{{
-        for(i=1;i<=NF;i++){{
-          if($i ~ /^NM:i:/){{sub("NM:i:", "", $i); mm = $i}}
-        }}
-        split($6, count, /[^0-9]+/);
-        split($6, type, /[^A-Z]*/);
-        for(i=1; i<= length(count)-1; i++){{
-          if(type[i + 1] ~ /[DIM]/){{aln+=count[i]}};
-        }}
-        print $1, $2, $3, length($10), aln, (aln - mm)/aln, $12, $14, $20
-        aln=0;
-      }}' \
-      > "{output}"
-      """
+        exec &> "{log}"
+        set -euxo pipefail
+        
+        sed ' /^@/ d' "{input}" | \
+        awk '{{
+            for(i=1;i<=NF;i++){{
+            if($i ~ /^NM:i:/){{sub("NM:i:", "", $i); mm = $i}}
+            }}
+            split($6, count, /[^0-9]+/);
+            split($6, type, /[^A-Z]*/);
+            for(i=1; i<= length(count)-1; i++){{
+            if(type[i + 1] ~ /[DIM]/){{aln+=count[i]}};
+            }}
+            print $1, $2, $3, length($10), aln, (aln - mm)/aln, $12, $14, $20
+            aln=0;
+        }}' \
+        > "{output}"
+        """

@@ -21,18 +21,21 @@ rule map2db:
         "../envs/map2db.yml"
     shell:
         """
-    minimap2 \
-      -ax map-ont \
-      -K20M \
-      -t {threads} \
-      --secondary=no \
-      {params.db_fasta} \
-      {input} \
-      | samtools \
-        view \
-        -F 4 \
-        -F 256 \
-        -F 2048 \
-        --threads {threads} \
-        -o {output}
+        exec &> "{log}"
+        set -euxo pipefail
+        
+        minimap2 \
+        -ax map-ont \
+        -K20M \
+        -t {threads} \
+        --secondary=no \
+        {params.db_fasta} \
+        {input} \
+        | samtools \
+            view \
+            -F 4 \
+            -F 256 \
+            -F 2048 \
+            --threads {threads} \
+            -o {output}
     """

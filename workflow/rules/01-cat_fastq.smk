@@ -32,6 +32,9 @@ rule concatenate_fastq:
         "Decompressing reads if gzip'ed and concatenating into a single file, then calculate total number of reads"
     shell:
         """
+        exec &> "{log}"
+        set -euxo pipefail
+        
         # decompress only if compressed, but concatenate regardless
         gunzip -cdfq {input} > {output.fastq}
         

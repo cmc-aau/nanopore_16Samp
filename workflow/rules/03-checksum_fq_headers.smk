@@ -25,23 +25,26 @@ rule checksum_fq_headers:
     threads: 1
     shell:
         """
-      awk 'NR%4 == 1 {{print $0}}' "{input}" |\
-        perl -MDigest::SHA=sha256_hex -nlE'say"$_\t".sha256_hex($_)' >\
-        "{output.seqid_checksums}"
+        exec &> "{log}"
+        set -euxo pipefail
+        
+        awk 'NR%4 == 1 {{print $0}}' "{input}" |\
+            perl -MDigest::SHA=sha256_hex -nlE'say"$_\t".sha256_hex($_)' >\
+            "{output.seqid_checksums}"
 
-      awk 'FNR == NR {{
-        header[FNR]="@"$NF
-        next
-        }}
-        {{
-          if (FNR%4 == 1) {{
-            print header[(FNR-1)/4+1]
-          }}
-          if (FNR%4 != 1) {{
-            print $0
-          }}
-        }}' \
-        "{output.seqid_checksums}" \
-        "{input}" >\
-        "{output.renamed_fastq}"
+        awk 'FNR == NR {{
+            header[FNR]="@"$NF
+            next
+            }}
+            {{
+            if (FNR%4 == 1) {{
+                print header[(FNR-1)/4+1]
+            }}
+            if (FNR%4 != 1) {{
+                print $0
+            }}
+            }}' \
+            "{output.seqid_checksums}" \
+            "{input}" >\
+            "{output.renamed_fastq}"
     """

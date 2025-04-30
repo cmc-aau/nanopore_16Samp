@@ -26,6 +26,9 @@ rule qfilter:
     threads: 1
     shell:
         """
+        exec &> "{log}"
+        set -euxo pipefail
+        
         filtlong {params.filtlong_args} {input} > {output.fastq}
 
         # calc total number of reads
