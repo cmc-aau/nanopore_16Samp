@@ -1,16 +1,15 @@
 import glob
 import os
 
-
 rule concatenate_fastq:
     input:
         # function to list all fastq files per wildcard (subfolder/sample)
         # see https://snakemake.readthedocs.io/en/latest/snakefiles/rules.html#input-functions
         lambda wildcards: (
-            glob.glob(os.path.join(config["input_dir"], wildcards.sample, "*.fastq")) +
-            glob.glob(os.path.join(config["input_dir"], wildcards.sample, "*.fq")) +
-            glob.glob(os.path.join(config["input_dir"], wildcards.sample, "*.fastq.gz")) +
-            glob.glob(os.path.join(config["input_dir"], wildcards.sample, "*.fq.gz"))
+            glob.glob(os.path.join(config["input_dir"], wildcards.sample, "**", "*.fastq")) +
+            glob.glob(os.path.join(config["input_dir"], wildcards.sample, "**", "*.fq")) +
+            glob.glob(os.path.join(config["input_dir"], wildcards.sample, "**", "*.fastq.gz")) +
+            glob.glob(os.path.join(config["input_dir"], wildcards.sample, "**", "*.fq.gz"))
         )
     output:
         fastq=temp(
